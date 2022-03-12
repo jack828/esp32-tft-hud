@@ -1,14 +1,11 @@
 #include "FT6236.h"
 #include "credentials.h"
 #include "definitions.h"
-#include "images.h"
-#include "planets.h"
 #include <NTPClient.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <WiFiMulti.h>
 #include <WiFiUdp.h>
-#include <math.h>
 #include <time.h>
 
 WiFiMulti wifiMulti;
@@ -19,19 +16,7 @@ NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btn;
 
-#define SUN_X 240
-#define SUN_Y 160
-#define SUN_R 7
 #define HEIGHT 320
-
-int colours[NUM_PLANETS] = {TFT_SILVER, TFT_BROWN,  TFT_GREEN,   TFT_RED,
-                            TFT_ORANGE, TFT_YELLOW, TFT_SKYBLUE, TFT_NAVY};
-
-// Function definitions for LSP
-void initTft(void);
-void initTouch(void);
-void initWifi(void);
-void initNtp(void);
 
 void setup() {
   Serial.begin(115200);
@@ -45,8 +30,6 @@ void setup() {
 
   // Sun is static & screen buffer does not reset each frame
   tft.setSwapBytes(!tft.getSwapBytes());
-  tft.pushImage(SUN_X - (SUN_WIDTH / 2), SUN_Y - (SUN_HEIGHT / 2), SUN_WIDTH,
-                SUN_HEIGHT, (uint16_t *)sunImage);
 
   btn.initButtonUL(&tft, 20, 100, 50, 50, TFT_WHITE, TFT_WHITE, TFT_BLACK,
                    "PLAY", 1);
@@ -57,7 +40,6 @@ void setup() {
 int count = 0;
 int32_t lastUpdate = 0;
 bool paused = true;
-Position *planets = (Position *)malloc(NUM_PLANETS * sizeof(Position));
 
 void loop() {
   tft.setCursor(0, 30, 2);
@@ -119,45 +101,6 @@ void loop() {
     time_t time = timeClient.getEpochTime() + (count++ * 24 * 60 * 60);
     const tm *timeTm = localtime(&time);
     tft.print(asctime(timeTm));
-    tft.print("    ");
-    coordinates(planets, timeTm);
-    /* Time To Calculate
-    tft.setCursor(0, 80, 2);
-    tft.print("  TTC: ");
-    tft.print(millis() - start);
-    */
-
-    start = millis();
-    /* DRAW PLANETS */
-    for (int planetIndex = 0; planetIndex < NUM_PLANETS; planetIndex++) {
-      Position planet = planets[planetIndex];
-      // Radius of planet's orbital position
-      int r = (SUN_R * 2.5) * (planetIndex + 1) + 2;
-
-      // Draw circular orbit
-      tft.drawCircle(SUN_X, SUN_Y, r, TFT_WHITE);
-
-      // Calculate angle of planet to sun at (0, 0)
-      double theta = atan2(planet.xeclip, planet.yeclip);
-      // Map to circular orbit position
-      double planetX = r * sin(theta);
-      double planetY = r * cos(theta);
-
-      // adjust relative to location of sun
-      planetX = planetX + SUN_X;
-      planetY = HEIGHT - (planetY + SUN_Y);
-
-      // Draw slightly larger circle to remove previous pixel
-      tft.fillCircle((int)planetX, (int)planetY, 8, TFT_BLACK);
-      // Draw planet image
-      tft.pushImage(planetX - (PLANET_WIDTH / 2),
-                    planetY - (PLANET_HEIGHT / 2), PLANET_WIDTH, PLANET_HEIGHT,
-                    (uint16_t *)planetImages[planetIndex]);
-    }
-    /* Time To Draw
-    tft.print("  TTD: ");
-    tft.print(millis() - start);
-    */
   }
 }
 
