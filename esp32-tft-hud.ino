@@ -16,8 +16,6 @@ NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btn;
 
-#define HEIGHT 320
-
 void setup() {
   Serial.begin(115200);
 
@@ -45,7 +43,7 @@ void loop() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
   lastUpdate = millis();
-  int pos[2] = {0, 0};
+  int pos[2] = { 0, 0 };
   ft6236_pos(pos);
   tft.print("X: ");
   tft.print(pos[0]);
@@ -53,11 +51,10 @@ void loop() {
   tft.print(pos[1]);
   tft.print(" BTN: ");
 
-  if (pos[0] != -1 && pos[1] != -1 &&
-      btn.contains(tft.width() - pos[0], pos[1])) {
-    btn.press(true); // tell the button it is pressed
+  if (pos[0] != -1 && pos[1] != -1 && btn.contains(tft.width() - pos[0], pos[1])) {
+    btn.press(true);  // tell the button it is pressed
   } else {
-    btn.press(false); // tell the button it is NOT pressed
+    btn.press(false);  // tell the button it is NOT pressed
   }
   tft.print(btn.contains(tft.width() - pos[0], pos[1]) ? 'Y' : 'N');
   tft.println("    ");
