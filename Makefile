@@ -1,13 +1,28 @@
 PWD=$(shell pwd)
+TAG=$(shell git describe --tags --abbrev=0 | tr -d '\n')
+PORT=/dev/ttyUSB0
+FQBN=esp32:esp32:esp32
 
 compile:
-	arduino-cli compile --fqbn esp32:esp32:esp32 . --log-level=debug --build-path=$(PWD)/build
+	arduino-cli compile \
+		--fqbn $(FQBN) \
+		--log-level=info \
+		--build-path=$(PWD)/build \
+		--build-property compiler.warning_level=all \
+		--warnings all \
+		.
 
 upload:
-	arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 --log-level=debug --input-dir=$(PWD)/build
+	arduino-cli upload \
+		-p $(PORT) \
+		--fqbn $(FQBN) \
+		--log-level=debug \
+		--input-dir=$(PWD)/build
 
-serialmonitor:
-	cat /dev/ttyUSB0
+monitor:
+	arduino-cli monitor \
+		-p $(PORT) \
+		--config Baudrate=115200
 
 clean:
 	rm -rf ./build
