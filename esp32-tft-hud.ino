@@ -37,7 +37,6 @@ void setup() {
   btn.drawButton();
 }
 
-int count = 0;
 int32_t lastUpdate = 0;
 bool paused = true;
 
@@ -80,28 +79,19 @@ void loop() {
   tft.print(F(" Time: "));
   tft.print(timeClient.getFormattedTime());
   tft.print(F(" Epoch: "));
-  tft.println(timeClient.getEpochTime());
+  time_t epochTime = timeClient.getEpochTime();
+  tft.println(epochTime);
+  tft.print(F("Date: "));
+  const tm *timeTm = localtime(&epochTime);
+  tft.println(asctime(timeTm));
 
-  tft.print(F("count: "));
-  tft.print(count);
 
-  tft.print(F(" FPS: "));
+  tft.print(F("FPS: "));
   tft.println((1 * 1000) / (millis() - lastUpdate));
   lastUpdate = millis();
   tft.setCursor(0, tft.height() - 16, 2);
   tft.print(F("Free heap: "));
   tft.print(ESP.getFreeHeap());
-  tft.print(' ');
-
-  /* GET PLANET POSITIONS */
-
-  // re-render in initial starting state OR if not paused
-  if (count == 0 || !paused) {
-    uint32_t start = millis();
-    time_t time = timeClient.getEpochTime() + (count++ * 24 * 60 * 60);
-    const tm *timeTm = localtime(&time);
-    tft.print(asctime(timeTm));
-  }
 }
 
 void initTft() {
@@ -141,7 +131,7 @@ void initWifi() {
 
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.println(
-        F("\n[ WIFI ] ERROR: Could not connect to wifi, rebooting..."));
+      F("\n[ WIFI ] ERROR: Could not connect to wifi, rebooting..."));
     Serial.flush();
     ESP.restart();
   }
