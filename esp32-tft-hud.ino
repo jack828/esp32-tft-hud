@@ -15,7 +15,7 @@ NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btnL, btnR;
-TFT_eSPI_Button buttons[] = { btnL, btnR };
+TFT_eSPI_Button *buttons[] = { &btnL, &btnR };
 uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
 void setup() {
@@ -78,21 +78,17 @@ void drawUI() {
   tft.print("Touch X: ");
   tft.print(pos[0]);
   tft.print(" Y: ");
-  tft.println(pos[1]);
-  tft.print("    ");
+  tft.print(pos[1]);
+  tft.println("    ");
 
-  if (pos[0] != -1 && pos[1] != -1) {
-    btnL.press(btnL.contains(tft.width() - pos[0], pos[1]));
-    btnR.press(btnR.contains(tft.width() - pos[0], pos[1]));
-  } else {
-    btnL.press(false);
-    btnR.press(false);
-  }
-  /* tft.print(btnL.contains(tft.width() - pos[0], pos[1]) ? 'Y' : 'N'); */
+  for (uint8_t buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
+    TFT_eSPI_Button *btn = buttons[buttonIndex];
 
-  // TODO it doesnt work...why?
-  /* for (uint8_t buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
-    TFT_eSPI_Button *btn = &buttons[buttonIndex];
+    if (pos[0] != -1 && pos[1] != -1) {
+      btn->press(btn->contains(tft.width() - pos[0], pos[1]));
+    } else {
+      btn->press(false);
+    }
 
     if (btn->justReleased()) {
       btn->drawButton(false);
@@ -100,18 +96,6 @@ void drawUI() {
       btn->action();
       btn->drawButton(true);
     }
-  } */
-  if (btnL.justReleased()) {
-    btnL.drawButton(false);
-  } else if (btnL.justPressed()) {
-    btnL.action();
-    btnL.drawButton(true);
-  }
-  if (btnR.justReleased()) {
-    btnR.drawButton(false);
-  } else if (btnR.justPressed()) {
-    btnR.action();
-    btnR.drawButton(true);
   }
 }
 
