@@ -18,6 +18,46 @@ TFT_eSPI_Button btnL, btnR;
 TFT_eSPI_Button *buttons[] = { &btnL, &btnR };
 uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
+typedef void (*ScreenFunction)(void);
+
+int32_t lastUpdate = 0;
+int8_t screenIndex = 0;
+bool transitioning = false;
+
+void screen1() {
+  tft.setCursor(0, 0, 2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  tft.print(F("g'day mate"));
+}
+
+void debugScreen() {
+  tft.setCursor(0, 0, 2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  tft.print(F("IP: "));
+  tft.print(WiFi.localIP());
+  tft.print(F(" Time: "));
+  tft.print(timeClient.getFormattedTime());
+  tft.print(F(" Epoch: "));
+  time_t epochTime = timeClient.getEpochTime();
+  tft.println(epochTime);
+  tft.print(F("Date: "));
+  const tm *timeTm = localtime(&epochTime);
+  tft.println(asctime(timeTm));
+
+
+  tft.print(F("FPS: "));
+  tft.println((1 * 1000) / (millis() - lastUpdate));
+  lastUpdate = millis();
+  /* tft.setCursor(0, tft.height() - 16, 2); */
+  tft.print(F("Free heap: "));
+  tft.print(ESP.getFreeHeap());
+}
+
+ScreenFunction screens[] = { screen1, debugScreen };
+uint8_t screenCount = sizeof(screens) / sizeof(screens[0]);
+
 void setup() {
   Serial.begin(115200);
 
@@ -46,6 +86,16 @@ void setup() {
   btnL.setLabelDatum(0, 0, MC_DATUM);
   btnL.setButtonAction([]() {
     Serial.println("BUTTON LEFT PRESSED");
+    if (transitioning) {
+      // ignore if transitioning, i don't want to deal with this edge case
+      return;
+    }
+    transitioning = true;
+    if (screenIndex - 1 == -1) { // Wrap around
+      screenIndex = screenCount - 1;
+      return;
+    }
+    screenIndex--;
   });
   btnL.drawButton();
 
@@ -64,12 +114,21 @@ void setup() {
   btnR.setLabelDatum(0, 0, MC_DATUM);
   btnR.setButtonAction([]() {
     Serial.println("BUTTON RIGHT PRESSED");
+    if (transitioning) {
+      // ignore if transitioning, i don't want to deal with this edge case
+      return;
+    }
+    transitioning = true;
+    if (screenIndex + 1 == screenCount) { // Wrap around
+      screenIndex = 0;
+      return;
+    }
+    screenIndex++;
   });
   btnR.drawButton();
 }
 
-bool paused = true;
-void drawUI() {
+void drawControls() {
   tft.setCursor(0, 30, 2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
@@ -95,39 +154,22 @@ void drawUI() {
     } else if (btn->justPressed()) {
       btn->action();
       btn->drawButton(true);
+    } else {
+      btn->drawButton();
     }
   }
 }
 
-int32_t lastUpdate = 0;
-int8_t screenIndex = 0;
-
 void loop() {
   lastUpdate = millis();
-  drawUI();
 
-  tft.setCursor(0, 0, 2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  // We can now plot text on screen using the "print" class
-  tft.print(F("IP: "));
-  tft.print(WiFi.localIP());
-  tft.print(F(" Time: "));
-  tft.print(timeClient.getFormattedTime());
-  tft.print(F(" Epoch: "));
-  time_t epochTime = timeClient.getEpochTime();
-  tft.println(epochTime);
-  tft.print(F("Date: "));
-  const tm *timeTm = localtime(&epochTime);
-  tft.println(asctime(timeTm));
-
-
-  tft.print(F("FPS: "));
-  tft.println((1 * 1000) / (millis() - lastUpdate));
-  lastUpdate = millis();
-  /* tft.setCursor(0, tft.height() - 16, 2); */
-  tft.print(F("Free heap: "));
-  tft.print(ESP.getFreeHeap());
+  if (transitioning) {
+    transitioning = false;
+    tft.fillScreen(TFT_BLACK);
+    Serial.println("F");
+  }
+  drawControls();
+  screens[screenIndex]();
 }
 
 void initTft() {
