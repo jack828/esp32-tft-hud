@@ -196,7 +196,7 @@ void initWifi() {
 }
 
 void initNtp() {
-  Serial.print(F("[ NTP ] Obtaining time..."));
+  Serial.println(F("[ NTP ] Obtaining time..."));
   tft.print(F("[ NTP ] Obtaining time..."));
   timeClient.begin();
   while (!timeClient.update()) {
