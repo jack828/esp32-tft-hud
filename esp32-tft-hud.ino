@@ -80,7 +80,7 @@ void setup() {
     TFT_WHITE,
     TFT_WHITE,
     TFT_BLACK,
-    const_cast<char *>("<-"),
+    (const char *)"<-",
     1);
 
   btnL.setLabelDatum(0, 0, MC_DATUM);
@@ -108,7 +108,7 @@ void setup() {
     TFT_WHITE,
     TFT_WHITE,
     TFT_BLACK,
-    const_cast<char *>("->"),
+    (const char *)"->",
     1);
 
   btnR.setLabelDatum(0, 0, MC_DATUM);
@@ -166,7 +166,6 @@ void loop() {
   if (transitioning) {
     transitioning = false;
     tft.fillScreen(TFT_BLACK);
-    Serial.println("F");
   }
   drawControls();
   screens[screenIndex]();
