@@ -15,6 +15,8 @@ NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btnL, btnR;
+TFT_eSPI_Button buttons[] = { btnL, btnR };
+uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
 void setup() {
   Serial.begin(115200);
@@ -42,6 +44,9 @@ void setup() {
     1);
 
   btnL.setLabelDatum(0, 0, MC_DATUM);
+  btnL.setButtonAction([]() {
+    Serial.println("BUTTON LEFT PRESSED");
+  });
   btnL.drawButton();
 
   btnR.initButtonUL(
@@ -57,6 +62,9 @@ void setup() {
     1);
 
   btnR.setLabelDatum(0, 0, MC_DATUM);
+  btnR.setButtonAction([]() {
+    Serial.println("BUTTON RIGHT PRESSED");
+  });
   btnR.drawButton();
 }
 
@@ -71,23 +79,39 @@ void drawUI() {
   tft.print(pos[0]);
   tft.print(" Y: ");
   tft.println(pos[1]);
-  /* tft.print(" BTN: "); */
+  tft.print("    ");
 
-  if (pos[0] != -1 && pos[1] != -1 && btnL.contains(tft.width() - pos[0], pos[1])) {
-    btnL.press(true);  // tell the button it is pressed
+  if (pos[0] != -1 && pos[1] != -1) {
+    btnL.press(btnL.contains(tft.width() - pos[0], pos[1]));
+    btnR.press(btnR.contains(tft.width() - pos[0], pos[1]));
   } else {
-    btnL.press(false);  // tell the button it is NOT pressed
+    btnL.press(false);
+    btnR.press(false);
   }
   /* tft.print(btnL.contains(tft.width() - pos[0], pos[1]) ? 'Y' : 'N'); */
 
+  // TODO it doesnt work...why?
+  /* for (uint8_t buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
+    TFT_eSPI_Button *btn = &buttons[buttonIndex];
+
+    if (btn->justReleased()) {
+      btn->drawButton(false);
+    } else if (btn->justPressed()) {
+      btn->action();
+      btn->drawButton(true);
+    }
+  } */
   if (btnL.justReleased()) {
-    /* btnL.drawButton(false, paused ? "PLAY" : "PAUSE"); */
     btnL.drawButton(false);
   } else if (btnL.justPressed()) {
-    paused = !paused;
-    /* btnL.drawButton(true, paused ? "PLAY" : "PAUSE"); */
+    btnL.action();
     btnL.drawButton(true);
-    Serial.println("PRESSED btnL");
+  }
+  if (btnR.justReleased()) {
+    btnR.drawButton(false);
+  } else if (btnR.justPressed()) {
+    btnR.action();
+    btnR.drawButton(true);
   }
 }
 
