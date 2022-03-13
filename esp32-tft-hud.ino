@@ -22,9 +22,11 @@ uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
 typedef void (*ScreenFunction)(void);
 
-int32_t lastUpdate = 0;
+int32_t lastRender = 0;
 int8_t screenIndex = 0;
 bool transitioning = false;
+int32_t lastUpdate = 0;
+int32_t metricUpdateInterval = 10 * 1000;
 
 void screen1() {
   tft.setCursor(0, 0, 2);
@@ -50,8 +52,8 @@ void debugScreen() {
 
 
   tft.print(F("FPS: "));
-  tft.println((1 * 1000) / (millis() - lastUpdate));
-  lastUpdate = millis();
+  tft.println((1 * 1000) / (millis() - lastRender));
+  lastRender = millis();
   /* tft.setCursor(0, tft.height() - 16, 2); */
   tft.print(F("Free heap: "));
   tft.print(ESP.getFreeHeap());
@@ -59,6 +61,11 @@ void debugScreen() {
 
 ScreenFunction screens[] = { screen1, debugScreen };
 uint8_t screenCount = sizeof(screens) / sizeof(screens[0]);
+
+void updateMetrics() {
+  Serial.println("UPDATING MeTRICS");
+  lastUpdate = millis();
+}
 
 void setup() {
   Serial.begin(115200);
@@ -164,7 +171,7 @@ void drawControls() {
 }
 
 void loop() {
-  lastUpdate = millis();
+  lastRender = millis();
 
   if (transitioning) {
     transitioning = false;
@@ -172,6 +179,10 @@ void loop() {
   }
   drawControls();
   screens[screenIndex]();
+
+  if (millis() - lastUpdate > metricUpdateInterval) {
+    updateMetrics();
+  }
 }
 
 void initTft() {
