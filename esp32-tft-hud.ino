@@ -94,7 +94,7 @@ void setup() {
       return;
     }
     transitioning = true;
-    if (screenIndex - 1 == -1) { // Wrap around
+    if (screenIndex - 1 == -1) {  // Wrap around
       screenIndex = screenCount - 1;
       return;
     }
@@ -122,7 +122,7 @@ void setup() {
       return;
     }
     transitioning = true;
-    if (screenIndex + 1 == screenCount) { // Wrap around
+    if (screenIndex + 1 == screenCount) {  // Wrap around
       screenIndex = 0;
       return;
     }
@@ -250,4 +250,3 @@ void initInflux() {
     ESP.restart();
   }
 }
-
