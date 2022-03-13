@@ -80,7 +80,7 @@ void setup() {
     TFT_WHITE,
     TFT_WHITE,
     TFT_BLACK,
-    (const char *)"<-",
+    (const_cast<char *>)"<-",
     1);
 
   btnL.setLabelDatum(0, 0, MC_DATUM);
@@ -108,7 +108,7 @@ void setup() {
     TFT_WHITE,
     TFT_WHITE,
     TFT_BLACK,
-    (const char *)"->",
+    (const_cast<char *>)"->",
     1);
 
   btnR.setLabelDatum(0, 0, MC_DATUM);
