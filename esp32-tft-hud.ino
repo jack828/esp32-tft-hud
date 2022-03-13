@@ -1,19 +1,21 @@
 #include "FT6236.h"
 #include "credentials.h"
 #include "definitions.h"
+#include "utils.h"
 #include <NTPClient.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <WiFiMulti.h>
 #include <WiFiUdp.h>
+#include <WiFiClient.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include <time.h>
-#include <InfluxDbClient.h>
 
 WiFiMulti wifiMulti;
 WiFiUDP ntpUDP;
 // TODO timezone
 NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
-InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB);
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btnL, btnR;
@@ -28,11 +30,16 @@ bool transitioning = false;
 int32_t lastUpdate = 0;
 int32_t metricUpdateInterval = 10 * 1000;
 
+// The docs say this is a BAD IDEA AND DON NOT DO IT
+// But the docs aren't the police
+DynamicJsonDocument data(2048);
+
 void screen1() {
   tft.setCursor(0, 0, 2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  tft.print(F("g'day mate"));
+  tft.println(F("g'day mate\n\n"));
+  serializeJson(data, tft);
 }
 
 void debugScreen() {
@@ -63,7 +70,37 @@ ScreenFunction screens[] = { screen1, debugScreen };
 uint8_t screenCount = sizeof(screens) / sizeof(screens[0]);
 
 void updateMetrics() {
-  Serial.println("UPDATING MeTRICS");
+  Serial.println("UPDATING METRICS");
+  data.clear();
+
+  String query = urlEncode("SELECT last(\"temperature\") FROM \"sensors\" WHERE time >= now() - 1h GROUP BY time(1h), \"location\" fill(linear) LIMIT 1");
+  WiFiClient client;
+  HTTPClient http;
+
+  http.useHTTP10(true);
+  http.begin(client, INFLUXDB_URL "/query?db=" INFLUXDB_DB "&q=" + query);
+  int responseCode = http.GET();
+  if (responseCode != 200) {
+    Serial.printf("Bad response: %d\n", responseCode);
+    Serial.println(http.getStream());
+  }
+
+  DynamicJsonDocument doc(2048);
+  deserializeJson(doc, http.getStream());
+
+  Serial.println(doc["results"][0]["series"].as<String>());
+
+  JsonArray nodes = doc["results"][0]["series"];
+  for (JsonVariant node : nodes) {
+    JsonObject reading = data.createNestedObject();
+    reading["location"] = node["tags"]["location"].as<String>();
+    reading["value"] = node["values"][0][1].as<double>();
+    // Serial.println(node.as<String>());
+  }
+
+  serializeJson(data, Serial);
+  Serial.printf("mem usage %lu\n", data.memoryUsage());
+  http.end();
   lastUpdate = millis();
 }
 
@@ -74,7 +111,6 @@ void setup() {
   initTouch();
   initWifi();
   initNtp();
-  initInflux();
 
   tft.fillScreen(TFT_BLACK);
 
@@ -246,18 +282,4 @@ void initNtp() {
   Serial.println(timeClient.getFormattedTime());
   Serial.print(F("[ NTP ] epoch: "));
   Serial.println(timeClient.getEpochTime());
-}
-
-void initInflux() {
-  tft.print(F("[ INFLUX ] Connecting..."));
-  bool influxOk = client.validateConnection();
-  if (influxOk) {
-    tft.println(F("done!"));
-    Serial.print(F("[ INFLUX ] Connected to: "));
-    Serial.println(client.getServerUrl());
-  } else {
-    Serial.print(F("[ INFLUX ] Connection failed: "));
-    Serial.println(client.getLastErrorMessage());
-    ESP.restart();
-  }
 }
