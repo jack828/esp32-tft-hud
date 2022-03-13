@@ -14,7 +14,7 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
 TFT_eSPI tft = TFT_eSPI();
-TFT_eSPI_Button btn;
+TFT_eSPI_Button btnL, btnR;
 
 void setup() {
   Serial.begin(115200);
@@ -29,43 +29,74 @@ void setup() {
   // Sun is static & screen buffer does not reset each frame
   tft.setSwapBytes(!tft.getSwapBytes());
 
-  btn.initButtonUL(&tft, 20, 100, 50, 50, TFT_WHITE, TFT_WHITE, TFT_BLACK,
-                   "PLAY", 1);
+  btnL.initButtonUL(
+    &tft,
+    tft.width() - 105,
+    tft.height() - 30,
+    50,
+    30,
+    TFT_WHITE,
+    TFT_WHITE,
+    TFT_BLACK,
+    const_cast<char *>("<-"),
+    1);
 
-  btn.drawButton();
+  btnL.setLabelDatum(0, 0, MC_DATUM);
+  btnL.drawButton();
+
+  btnR.initButtonUL(
+    &tft,
+    tft.width() - 50,
+    tft.height() - 30,
+    50,
+    30,
+    TFT_WHITE,
+    TFT_WHITE,
+    TFT_BLACK,
+    const_cast<char *>("->"),
+    1);
+
+  btnR.setLabelDatum(0, 0, MC_DATUM);
+  btnR.drawButton();
 }
 
-int32_t lastUpdate = 0;
 bool paused = true;
-
-void loop() {
+void drawUI() {
   tft.setCursor(0, 30, 2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  lastUpdate = millis();
   int pos[2] = { 0, 0 };
   ft6236_pos(pos);
-  tft.print("X: ");
+  tft.print("Touch X: ");
   tft.print(pos[0]);
   tft.print(" Y: ");
-  tft.print(pos[1]);
-  tft.print(" BTN: ");
+  tft.println(pos[1]);
+  /* tft.print(" BTN: "); */
 
-  if (pos[0] != -1 && pos[1] != -1 && btn.contains(tft.width() - pos[0], pos[1])) {
-    btn.press(true);  // tell the button it is pressed
+  if (pos[0] != -1 && pos[1] != -1 && btnL.contains(tft.width() - pos[0], pos[1])) {
+    btnL.press(true);  // tell the button it is pressed
   } else {
-    btn.press(false);  // tell the button it is NOT pressed
+    btnL.press(false);  // tell the button it is NOT pressed
   }
-  tft.print(btn.contains(tft.width() - pos[0], pos[1]) ? 'Y' : 'N');
-  tft.println("    ");
+  /* tft.print(btnL.contains(tft.width() - pos[0], pos[1]) ? 'Y' : 'N'); */
 
-  if (btn.justReleased()) {
-    btn.drawButton(false, paused ? "PLAY" : "PAUSE");
-  } else if (btn.justPressed()) {
+  if (btnL.justReleased()) {
+    /* btnL.drawButton(false, paused ? "PLAY" : "PAUSE"); */
+    btnL.drawButton(false);
+  } else if (btnL.justPressed()) {
     paused = !paused;
-    btn.drawButton(true, paused ? "PLAY" : "PAUSE");
-    Serial.println("PRESSED BOI");
+    /* btnL.drawButton(true, paused ? "PLAY" : "PAUSE"); */
+    btnL.drawButton(true);
+    Serial.println("PRESSED btnL");
   }
+}
+
+int32_t lastUpdate = 0;
+int8_t screenIndex = 0;
+
+void loop() {
+  lastUpdate = millis();
+  drawUI();
 
   tft.setCursor(0, 0, 2);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -86,7 +117,7 @@ void loop() {
   tft.print(F("FPS: "));
   tft.println((1 * 1000) / (millis() - lastUpdate));
   lastUpdate = millis();
-  tft.setCursor(0, tft.height() - 16, 2);
+  /* tft.setCursor(0, tft.height() - 16, 2); */
   tft.print(F("Free heap: "));
   tft.print(ESP.getFreeHeap());
 }
