@@ -7,11 +7,13 @@
 #include <WiFiMulti.h>
 #include <WiFiUdp.h>
 #include <time.h>
+#include <InfluxDbClient.h>
 
 WiFiMulti wifiMulti;
 WiFiUDP ntpUDP;
 // TODO timezone
 NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
+InfluxDBClient client(INFLUXDB_URL, INFLUXDB_DB);
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSPI_Button btnL, btnR;
@@ -65,6 +67,7 @@ void setup() {
   initTouch();
   initWifi();
   initNtp();
+  initInflux();
 
   tft.fillScreen(TFT_BLACK);
 
@@ -227,8 +230,24 @@ void initNtp() {
   while (!timeClient.update()) {
     timeClient.forceUpdate();
   }
+  tft.println(F("done!"));
   Serial.print(F("[ NTP ] time: "));
   Serial.println(timeClient.getFormattedTime());
   Serial.print(F("[ NTP ] epoch: "));
   Serial.println(timeClient.getEpochTime());
 }
+
+void initInflux() {
+  tft.print(F("[ INFLUX ] Connecting..."));
+  bool influxOk = client.validateConnection();
+  if (influxOk) {
+    tft.println(F("done!"));
+    Serial.print(F("[ INFLUX ] Connected to: "));
+    Serial.println(client.getServerUrl());
+  } else {
+    Serial.print(F("[ INFLUX ] Connection failed: "));
+    Serial.println(client.getLastErrorMessage());
+    ESP.restart();
+  }
+}
+

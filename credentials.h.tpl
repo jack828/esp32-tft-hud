@@ -8,4 +8,7 @@
 #define WIFI_SSID_3 ""
 #define WIFI_PSK_3 ""
 
+#define INFLUXDB_URL ""
+#define INFLUXDB_DB ""
+
 #endif
