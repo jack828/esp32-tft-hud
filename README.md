@@ -16,14 +16,7 @@ Which has:
 
 ## Prerequisites
 
-Install Bodmer's TFT_eSPI library and:
- - In `User_Setup_Select.h`
-   - Comment out ALL setups except `#include <User_Setup.h>`
- - In `User_Setup.h`
-   - Change the contents to the one in this repo.
- - In `TFT_eSPI.cpp`
-   - Head to the bottom and move `#include <Extensions/Button.cpp>` out of the `#if TOUCH_CS` conditional
-
+Install Bodmer's TFT_eSPI library
 Install NTPClient
 
 ## Author

@@ -2,6 +2,8 @@
 
 #define ILI9488_DRIVER
 
+#define USER_SETUP_LOADED
+
 #define TFT_MISO 12
 #define TFT_MOSI 13
 #define TFT_SCLK 14

@@ -5,6 +5,7 @@
 #define I2C_SDA 26
 #define I2C_SCL 27
 
+#include "User_Setup.h"
 // SPI
 // #define HSPI_MOSI 13
 // #define HSPI_MISO 12

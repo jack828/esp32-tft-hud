@@ -11,6 +11,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include "ring-meter.h"
 
 WiFiMulti wifiMulti;
 WiFiUDP ntpUDP;
@@ -33,6 +34,12 @@ int32_t metricUpdateInterval = 10 * 1000;
 // The docs say this is a BAD IDEA AND DON NOT DO IT
 // But the docs aren't the police
 DynamicJsonDocument data(2048);
+#define RED2RED 0
+#define GREEN2GREEN 1
+#define BLUE2BLUE 2
+#define BLUE2RED 3
+#define GREEN2RED 4
+#define RED2GREEN 5
 
 void screen1() {
   tft.setCursor(0, 0, 2);
@@ -40,6 +47,13 @@ void screen1() {
 
   tft.println(F("g'day mate\n\n"));
   serializeJson(data, tft);
+  // Set the the position, gap between meters, and inner radius of the meters
+  int xpos = 480 / 2 - 160;
+  int ypos = 70;
+  int gap = 15;
+  int radius = 170 / 2;
+  int reading = 70;
+  /* ringMeter(&tft, reading, 0, 100, xpos, ypos, radius, "Watts", GREEN2RED);  // Draw analogue meter */
 }
 
 void debugScreen() {
@@ -69,41 +83,6 @@ void debugScreen() {
 ScreenFunction screens[] = { screen1, debugScreen };
 uint8_t screenCount = sizeof(screens) / sizeof(screens[0]);
 
-void updateMetrics() {
-  Serial.println("UPDATING METRICS");
-  data.clear();
-
-  String query = urlEncode("SELECT last(\"temperature\") FROM \"sensors\" WHERE time >= now() - 1h GROUP BY time(1h), \"location\" fill(linear) LIMIT 1");
-  WiFiClient client;
-  HTTPClient http;
-
-  http.useHTTP10(true);
-  http.begin(client, INFLUXDB_URL "/query?db=" INFLUXDB_DB "&q=" + query);
-  int responseCode = http.GET();
-  if (responseCode != 200) {
-    Serial.printf("Bad response: %d\n", responseCode);
-    Serial.println(http.getStream());
-  }
-
-  DynamicJsonDocument doc(2048);
-  deserializeJson(doc, http.getStream());
-
-  Serial.println(doc["results"][0]["series"].as<String>());
-
-  JsonArray nodes = doc["results"][0]["series"];
-  for (JsonVariant node : nodes) {
-    JsonObject reading = data.createNestedObject();
-    reading["location"] = node["tags"]["location"].as<String>();
-    reading["value"] = node["values"][0][1].as<double>();
-    // Serial.println(node.as<String>());
-  }
-
-  serializeJson(data, Serial);
-  Serial.printf("mem usage %lu\n", data.memoryUsage());
-  http.end();
-  lastUpdate = millis();
-}
-
 void setup() {
   Serial.begin(115200);
 
@@ -130,19 +109,19 @@ void setup() {
     1);
 
   btnL.setLabelDatum(0, 0, MC_DATUM);
-  btnL.setButtonAction([]() {
-    Serial.println("BUTTON LEFT PRESSED");
-    if (transitioning) {
-      // ignore if transitioning, i don't want to deal with this edge case
-      return;
-    }
-    transitioning = true;
-    if (screenIndex - 1 == -1) {  // Wrap around
-      screenIndex = screenCount - 1;
-      return;
-    }
-    screenIndex--;
-  });
+  // btnL.setButtonAction([]() {
+  //   Serial.println("BUTTON LEFT PRESSED");
+  //   if (transitioning) {
+  //     // ignore if transitioning, i don't want to deal with this edge case
+  //     return;
+  //   }
+  //   transitioning = true;
+  //   if (screenIndex - 1 == -1) {  // Wrap around
+  //     screenIndex = screenCount - 1;
+  //     return;
+  //   }
+  //   screenIndex--;
+  // });
   btnL.drawButton();
 
   btnR.initButtonUL(
@@ -158,19 +137,19 @@ void setup() {
     1);
 
   btnR.setLabelDatum(0, 0, MC_DATUM);
-  btnR.setButtonAction([]() {
-    Serial.println("BUTTON RIGHT PRESSED");
-    if (transitioning) {
-      // ignore if transitioning, i don't want to deal with this edge case
-      return;
-    }
-    transitioning = true;
-    if (screenIndex + 1 == screenCount) {  // Wrap around
-      screenIndex = 0;
-      return;
-    }
-    screenIndex++;
-  });
+  // btnR.setButtonAction([]() {
+  //   Serial.println("BUTTON RIGHT PRESSED");
+  //   if (transitioning) {
+  //     // ignore if transitioning, i don't want to deal with this edge case
+  //     return;
+  //   }
+  //   transitioning = true;
+  //   if (screenIndex + 1 == screenCount) {  // Wrap around
+  //     screenIndex = 0;
+  //     return;
+  //   }
+  //   screenIndex++;
+  // });
   btnR.drawButton();
 }
 
@@ -198,7 +177,7 @@ void drawControls() {
     if (btn->justReleased()) {
       btn->drawButton(false);
     } else if (btn->justPressed()) {
-      btn->action();
+      // btn->action();
       btn->drawButton(true);
     } else {
       btn->drawButton();
@@ -217,7 +196,7 @@ void loop() {
   screens[screenIndex]();
 
   if (millis() - lastUpdate > metricUpdateInterval) {
-    updateMetrics();
+    // updateMetrics();
   }
 }
 
