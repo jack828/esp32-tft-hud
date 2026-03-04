@@ -11,77 +11,25 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
-#include "ring-meter.h"
+#include "data-manager.h"
+#include "screen-manager.h"
+#include "screens.h"
 
 WiFiMulti wifiMulti;
 WiFiUDP ntpUDP;
-// TODO timezone
+// TODO timezone, available in weather api
 NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
 TFT_eSPI tft = TFT_eSPI();
+DataManager dataManager;
+ScreenManager screenManager(tft);
+
 TFT_eSPI_Button btnL, btnR;
 TFT_eSPI_Button *buttons[] = { &btnL, &btnR };
 uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
-typedef void (*ScreenFunction)(void);
-
 int32_t lastRender = 0;
-int8_t screenIndex = 0;
 bool transitioning = false;
-int32_t lastUpdate = 0;
-int32_t metricUpdateInterval = 10 * 1000;
-
-// The docs say this is a BAD IDEA AND DON NOT DO IT
-// But the docs aren't the police
-DynamicJsonDocument data(2048);
-#define RED2RED 0
-#define GREEN2GREEN 1
-#define BLUE2BLUE 2
-#define BLUE2RED 3
-#define GREEN2RED 4
-#define RED2GREEN 5
-
-void screen1() {
-  tft.setCursor(0, 0, 2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  tft.println(F("g'day mate\n\n"));
-  serializeJson(data, tft);
-  // Set the the position, gap between meters, and inner radius of the meters
-  int xpos = 480 / 2 - 160;
-  int ypos = 70;
-  int gap = 15;
-  int radius = 170 / 2;
-  int reading = 70;
-  /* ringMeter(&tft, reading, 0, 100, xpos, ypos, radius, "Watts", GREEN2RED);  // Draw analogue meter */
-}
-
-void debugScreen() {
-  tft.setCursor(0, 0, 2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  tft.print(F("IP: "));
-  tft.print(WiFi.localIP());
-  tft.print(F(" Time: "));
-  tft.print(timeClient.getFormattedTime());
-  tft.print(F(" Epoch: "));
-  time_t epochTime = timeClient.getEpochTime();
-  tft.println(epochTime);
-  tft.print(F("Date: "));
-  const tm *timeTm = localtime(&epochTime);
-  tft.println(asctime(timeTm));
-
-
-  tft.print(F("FPS: "));
-  tft.println((1 * 1000) / (millis() - lastRender));
-  lastRender = millis();
-  /* tft.setCursor(0, tft.height() - 16, 2); */
-  tft.print(F("Free heap: "));
-  tft.print(ESP.getFreeHeap());
-}
-
-ScreenFunction screens[] = { screen1, debugScreen };
-uint8_t screenCount = sizeof(screens) / sizeof(screens[0]);
 
 void setup() {
   Serial.begin(115200);
@@ -92,78 +40,35 @@ void setup() {
   initNtp();
 
   tft.fillScreen(TFT_BLACK);
-
-  // Sun is static & screen buffer does not reset each frame
   tft.setSwapBytes(!tft.getSwapBytes());
 
-  btnL.initButtonUL(
-    &tft,
-    tft.width() - 105,
-    tft.height() - 30,
-    50,
-    30,
-    TFT_WHITE,
-    TFT_WHITE,
-    TFT_BLACK,
-    const_cast<char *>("<-"),
-    1);
+  // Register all screens
+  screenManager.registerScreen(drawClockWeatherScreen);
+  // screenManager.registerScreen(drawHourlyForecastScreen);
+  // screenManager.registerScreen(drawDailyForecastScreen);
+  // screenManager.registerScreen(drawSunTimesScreen);
+  // screenManager.registerScreen(drawCalendarScreen);
+  // screenManager.registerScreen(drawSystemScreen);
 
+  // Setup navigation buttons
+  btnL.initButtonUL(&tft, tft.width() - 105, tft.height() - 30, 50, 30,
+                    TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("<-"), 1);
   btnL.setLabelDatum(0, 0, MC_DATUM);
-  // btnL.setButtonAction([]() {
-  //   Serial.println("BUTTON LEFT PRESSED");
-  //   if (transitioning) {
-  //     // ignore if transitioning, i don't want to deal with this edge case
-  //     return;
-  //   }
-  //   transitioning = true;
-  //   if (screenIndex - 1 == -1) {  // Wrap around
-  //     screenIndex = screenCount - 1;
-  //     return;
-  //   }
-  //   screenIndex--;
-  // });
+
+  btnR.initButtonUL(&tft, tft.width() - 50, tft.height() - 30, 50, 30,
+                    TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("->"), 1);
+  btnR.setLabelDatum(0, 0, MC_DATUM);
+  btnR.drawButton();
   btnL.drawButton();
 
-  btnR.initButtonUL(
-    &tft,
-    tft.width() - 50,
-    tft.height() - 30,
-    50,
-    30,
-    TFT_WHITE,
-    TFT_WHITE,
-    TFT_BLACK,
-    const_cast<char *>("->"),
-    1);
-
-  btnR.setLabelDatum(0, 0, MC_DATUM);
-  // btnR.setButtonAction([]() {
-  //   Serial.println("BUTTON RIGHT PRESSED");
-  //   if (transitioning) {
-  //     // ignore if transitioning, i don't want to deal with this edge case
-  //     return;
-  //   }
-  //   transitioning = true;
-  //   if (screenIndex + 1 == screenCount) {  // Wrap around
-  //     screenIndex = 0;
-  //     return;
-  //   }
-  //   screenIndex++;
-  // });
-  btnR.drawButton();
+    dataManager.updateWeather(LATITUDE, LONGITUDE, WEATHER_API_KEY);
+    // dataManager.updateCalendar(CALENDAR_URL);
+    // dataManager.updateSunTimes(LATITUDE, LONGITUDE);
 }
 
 void drawControls() {
-  tft.setCursor(0, 30, 2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
   int pos[2] = { 0, 0 };
   ft6236_pos(pos);
-  tft.print("Touch X: ");
-  tft.print(pos[0]);
-  tft.print(" Y: ");
-  tft.print(pos[1]);
-  tft.println("    ");
 
   for (uint8_t buttonIndex = 0; buttonIndex < buttonCount; buttonIndex++) {
     TFT_eSPI_Button *btn = buttons[buttonIndex];
@@ -177,8 +82,14 @@ void drawControls() {
     if (btn->justReleased()) {
       btn->drawButton(false);
     } else if (btn->justPressed()) {
-      // btn->action();
       btn->drawButton(true);
+      if (btn == &btnL) {
+        screenManager.prevScreen();
+        transitioning = true;
+      } else if (btn == &btnR) {
+        screenManager.nextScreen();
+        transitioning = true;
+      }
     } else {
       btn->drawButton();
     }
@@ -186,23 +97,34 @@ void drawControls() {
 }
 
 void loop() {
-  lastRender = millis();
-
   if (transitioning) {
     transitioning = false;
     tft.fillScreen(TFT_BLACK);
   }
-  drawControls();
-  screens[screenIndex]();
 
-  if (millis() - lastUpdate > metricUpdateInterval) {
-    // updateMetrics();
+  // Check for auto-rotation every 60 seconds
+  screenManager.checkAutoRotate();
+
+  // Update data if needed
+  if (dataManager.shouldUpdateWeather()) {
+    dataManager.updateWeather(LATITUDE, LONGITUDE, WEATHER_API_KEY);
   }
+  if (dataManager.shouldUpdateCalendar()) {
+    dataManager.updateCalendar(CALENDAR_URL);
+  }
+  if (dataManager.shouldUpdateSun()) {
+    dataManager.updateSunTimes(LATITUDE, LONGITUDE);
+  }
+
+  // Render current screen
+  drawControls();
+  screenManager.render();
+
+  delay(50); // 20 FPS
 }
 
 void initTft() {
   tft.init();
-
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK);
 }
@@ -219,8 +141,6 @@ void initTouch() {
   } else {
     Serial.print("Unknown error at address 0x");
     Serial.println(TOUCH_I2C_ADD, HEX);
-    Serial.print(" - ");
-    Serial.println(error);
   }
 }
 
@@ -236,8 +156,7 @@ void initWifi() {
   wifiMulti.addAP(WIFI_SSID_3, WIFI_PSK_3);
 
   while (wifiMulti.run() != WL_CONNECTED) {
-    Serial.println(
-      F("\n[ WIFI ] ERROR: Could not connect to wifi, rebooting..."));
+    Serial.println(F("\n[ WIFI ] ERROR: Could not connect to wifi, rebooting..."));
     Serial.flush();
     ESP.restart();
   }
