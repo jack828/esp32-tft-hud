@@ -36,10 +36,12 @@ ScreenManager screenManager;
 void setup() {
   Serial.begin(115200);
 
-  initTft();
-  initWifi();
-  initNtp();
-  initDataManager();
+  initLcd();
+  // initWifi();
+  // initNtp();
+  // initDataManager();
+
+  Serial.printf("[ LCD ] Size %ldx%ld\n", lcd.width(), lcd.height());
 
   // Register all screens
   screenManager.registerScreen(drawClockWeatherScreen);
@@ -73,6 +75,8 @@ void setup() {
     if (lcd.isEPD()) std::swap(fg, bg);
     lcd.calibrateTouch(nullptr, fg, bg, std::max(lcd.width(), lcd.height()) >> 3);
   }
+
+  transitioning = true;
 }
 
 /* void drawControls() {
@@ -143,14 +147,15 @@ void loop() {
     // time budget.
     delay(remainingTimeBudget);
   } */
-  lcd.setCursor(0, lcd.height() - 16);
-  lcd.print(F(" FPS: "));
-  lcd.print((1 * 1000) / (millis() - frameStart));
-  lcd.println("    ");
+  lcd.setTextSize(2);
+  lcd.setCursor(2, lcd.height() - lcd.fontHeight() - 2);
+  lcd.print(F("FPS: "));
+  unsigned long updateTime = millis() - frameStart;
+  lcd.print((1 * 1000) / max(updateTime, 1LU));
   delay(50);  // 20 FPS
 }
 
-void initTft() {
+void initLcd() {
   lcd.init();
   lcd.setRotation(3);
   lcd.setBrightness(128);

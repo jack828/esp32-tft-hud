@@ -27,7 +27,7 @@ void ScreenManager::render() {
 
 void ScreenManager::checkAutoRotate() {
   if (autoRotate && millis() - lastScreenChange > SCREEN_CHANGE_INTERVAL) {
-    Serial.println("Rotating...");
+    Serial.println("[ ScreenManager ] Rotating...");
     nextScreen();
   }
 }

@@ -19,36 +19,59 @@ unsigned long lastWeatherDraw = 0;
 
 // Screen 1: Clock + Current Weather
 void drawClockWeatherScreen() {
-  // Serial.println("drawClockWeatherScreen");
-  int y = 0;
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  lcd.setTextDatum(TL_DATUM);
+  lcd.setTextDatum(middle_left);
 
-  lcd.setCursor(0, 0);
+  int16_t TOP_BAR_HEIGHT = 50;
+  int16_t MIDDLE_BAR_HEIGHT = (lcd.height() / 2) - TOP_BAR_HEIGHT;
+  int16_t SIDE_ICON_WIDTH = lcd.width() / 5;
+  int16_t CENTRE_SEGMENT_WIDTH = (lcd.width() / 2) - SIDE_ICON_WIDTH;
+
+  // TOP_BAR
+  lcd.drawRect(0, 0, lcd.width(), TOP_BAR_HEIGHT, TFT_GREEN);
+  // BOTTOM_BAR
+  lcd.drawRect(0, lcd.height() - TOP_BAR_HEIGHT, lcd.width(), TOP_BAR_HEIGHT, TFT_GREEN);
+
+  // MIDDLE_GROUP
+  // WEATHER_ICON
+  lcd.drawRect(0, TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  // TEMP_AND_DESCRIPTION
+  lcd.drawRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  // RH_hPa_WIND
+  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  // WIND_COMPASS
+  lcd.drawRect(lcd.width() - (SIDE_ICON_WIDTH), TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  // end MIDDLE_GROUP
+
+  lcd.drawRect(0, lcd.height() / 2, lcd.width(), MIDDLE_BAR_HEIGHT, TFT_RED);
+
   String newTime = timeClient.getFormattedTime();
   if (lastTime != newTime) {
     lcd.setTextSize(4);
     lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    lcd.println(newTime);
+    lcd.drawString(newTime, 2, TOP_BAR_HEIGHT / 2);
     lastTime = newTime;
   }
 
   time_t epochTime = timeClient.getEpochTime();
   struct tm *timeinfo = localtime(&epochTime);
   char dateStr[32];
-  strftime(dateStr, sizeof(dateStr), "%A, %B %d, %Y", timeinfo);
+  strftime(dateStr, sizeof(dateStr), "%A, %Y-%m-%d", timeinfo);
 
   if (strcmp(lastDate, dateStr) != 0) {
     lcd.setTextSize(2);
-    lcd.println(dateStr);
+    lcd.drawString(dateStr, lcd.width() - lcd.textWidth(dateStr), TOP_BAR_HEIGHT / 2);
     strcpy(lastDate, dateStr);
   }
-
+// TODO use lcd.setClipRect to define drawing bounds to not have to care about overdraw
   if (dataManager.getLastWeatherUpdate() > lastWeatherDraw) {
     JsonDocument current = dataManager.getWeatherData();
     if (!current.isNull()) {
-      lcd.setTextSize(2);
-      lcd.setCursor(0, y);
+
+
+
+      /* lcd.setTextSize(2);
+      lcd.setCursor(0, 50);
       lcd.print("T: ");
       lcd.print(current["main"]["temp"].as<int>());
       lcd.print("C");
@@ -73,8 +96,12 @@ void drawClockWeatherScreen() {
       lcd.print("m/s ");
       lcd.print(current["wind"]["deg"].as<int>());
       lcd.print(" ");
-      lcd.print(current["wind"]["gust"].as<float>());
-      lcd.println("m/s");
+      if(!current["wind"]["gust"].isNull()) {
+        lcd.print(current["wind"]["gust"].as<float>());
+        lcd.println("m/s");
+      } else {
+        lcd.println();
+      }
 
       // lcd.setCursor(20, 280);
       if (!current["clouds"].isNull()) {
@@ -82,13 +109,13 @@ void drawClockWeatherScreen() {
         lcd.print(current["clouds"]["all"].as<int>());
         lcd.print("%");
       }
-
+*/
       // TODO image
       // https://wsrv.nl/?url=openweathermap.org/payload/api/media/file/10d%402x.png&output=jpg&quality=100
     } else {
-      lcd.setTextSize(2);
-      lcd.setCursor(20, 160);
-      lcd.print("Weather data loading...");
+      // lcd.setTextSize(2);
+      // lcd.setCursor(20, 160);
+      // lcd.print("Weather data loading...");
     }
     lastWeatherDraw = millis();
   }
