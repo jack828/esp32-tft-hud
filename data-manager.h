@@ -25,6 +25,10 @@ public:
   JsonDocument& getCalendarData() { return calendarData; }
   JsonDocument& getSunData() { return sunData; }
 
+  unsigned long getLastWeatherUpdate() { return lastWeatherUpdate; }
+  unsigned long getLastCalendarUpdate() { return lastCalendarUpdate; }
+  unsigned long getLastSunUpdate() { return lastSunUpdate; }
+
   bool shouldUpdateWeather() { return millis() - lastWeatherUpdate > WEATHER_UPDATE_INTERVAL; }
   bool shouldUpdateCalendar() { return millis() - lastCalendarUpdate > CALENDAR_UPDATE_INTERVAL; }
   bool shouldUpdateSun() { return millis() - lastSunUpdate > SUN_UPDATE_INTERVAL; }

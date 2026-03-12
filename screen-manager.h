@@ -1,5 +1,5 @@
 #pragma once
-#include <TFT_eSPI.h>
+#include <stdint.h>
 #include <functional>
 
 class ScreenManager {
@@ -13,10 +13,8 @@ private:
   const unsigned long SCREEN_CHANGE_INTERVAL = 60 * 1000; // 60 seconds
   bool autoRotate = true;
 
-  TFT_eSPI& tft;
-
 public:
-  ScreenManager(TFT_eSPI& tft);
+  ScreenManager(void);
 
   void registerScreen(ScreenFunction screen);
   void nextScreen();

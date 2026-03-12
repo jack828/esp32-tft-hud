@@ -1,10 +1,11 @@
 #pragma once
 #include "data-manager.h"
 #include <NTPClient.h>
-#include <TFT_eSPI.h>
+#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
 #include <cstring>
 
-extern TFT_eSPI tft;
+extern LGFX lcd;
 extern DataManager dataManager;
 extern NTPClient timeClient;
 extern bool transitioning;
@@ -14,82 +15,92 @@ const unsigned long REDRAW_INTERVAL = 1000;
 
 String lastTime = "";
 char lastDate[32] = {0};
+unsigned long lastWeatherDraw = 0;
 
 // Screen 1: Clock + Current Weather
 void drawClockWeatherScreen() {
-  // Check if we need a full redraw
-  bool needsRedraw =
-      transitioning || (millis() - lastFullRedraw > REDRAW_INTERVAL);
+  // Serial.println("drawClockWeatherScreen");
+  int y = 0;
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextDatum(TL_DATUM);
 
-  if (!needsRedraw) {
-    // return;
-  }
-  // tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-  // Draw time (large)
+  lcd.setCursor(0, 0);
   String newTime = timeClient.getFormattedTime();
   if (lastTime != newTime) {
-    tft.setTextSize(4);
-    tft.setCursor(20, 20);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.print(newTime);
+    lcd.setTextSize(4);
+    lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+    lcd.println(newTime);
     lastTime = newTime;
   }
 
-  // Draw date
   time_t epochTime = timeClient.getEpochTime();
   struct tm *timeinfo = localtime(&epochTime);
   char dateStr[32];
   strftime(dateStr, sizeof(dateStr), "%A, %B %d, %Y", timeinfo);
 
   if (strcmp(lastDate, dateStr) != 0) {
-    tft.setTextSize(2);
-    tft.setCursor(20, 100);
-    tft.print(dateStr);
+    lcd.setTextSize(2);
+    lcd.println(dateStr);
     strcpy(lastDate, dateStr);
   }
 
-  // Draw current weather (from weatherData)
-  JsonDocument current = dataManager.getWeatherData();
-  if (!current.isNull()) {
-    tft.setTextSize(3);
-    tft.setCursor(20, 160);
-    tft.print("T: ");
-    tft.print(current["main"]["temp"].as<int>());
-    tft.print("C");
+  if (dataManager.getLastWeatherUpdate() > lastWeatherDraw) {
+    JsonDocument current = dataManager.getWeatherData();
+    if (!current.isNull()) {
+      lcd.setTextSize(2);
+      lcd.setCursor(0, y);
+      lcd.print("T: ");
+      lcd.print(current["main"]["temp"].as<int>());
+      lcd.print("C");
 
-    tft.setTextSize(2);
-    tft.setCursor(20, 210);
-    const char *desc = current["weather"][0]["main"] | "N/A";
-    tft.print(desc);
+      lcd.print(" | ");
+      lcd.print("H: ");
+      lcd.print(current["main"]["humidity"].as<int>());
+      lcd.print("%");
 
-    // Draw humidity & pressure
-    tft.setCursor(20, 250);
-    tft.print("H: ");
-    tft.print(current["main"]["humidity"].as<int>());
-    tft.print("%");
+      lcd.print(" | ");
+      lcd.print("P: ");
+      lcd.print(current["main"]["pressure"].as<int>());
+      lcd.println(" hPa");
 
-    tft.setCursor(20, 280);
-    tft.print("P: ");
-    tft.print(current["main"]["pressure"].as<int>());
-    tft.print(" hPa");
-  } else {
-    tft.setTextSize(2);
-    tft.setCursor(20, 160);
-    tft.print("Weather data loading...");
+      // lcd.setCursor(y, 0);
+      const char *desc = current["weather"][0]["main"] | "N/A";
+      lcd.println(desc);
+
+      // lcd.setCursor(y, 0);
+      lcd.print("W: ");
+      lcd.print(current["wind"]["speed"].as<float>());
+      lcd.print("m/s ");
+      lcd.print(current["wind"]["deg"].as<int>());
+      lcd.print(" ");
+      lcd.print(current["wind"]["gust"].as<float>());
+      lcd.println("m/s");
+
+      // lcd.setCursor(20, 280);
+      if (!current["clouds"].isNull()) {
+        lcd.print("C: ");
+        lcd.print(current["clouds"]["all"].as<int>());
+        lcd.print("%");
+      }
+
+      // TODO image
+      // https://wsrv.nl/?url=openweathermap.org/payload/api/media/file/10d%402x.png&output=jpg&quality=100
+    } else {
+      lcd.setTextSize(2);
+      lcd.setCursor(20, 160);
+      lcd.print("Weather data loading...");
+    }
+    lastWeatherDraw = millis();
   }
-
-  lastFullRedraw = millis();
 }
-
+/*
 // Screen 2: Hourly Forecast
 void drawHourlyForecastScreen() {
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(20, 20);
-  tft.print("Hourly Forecast (Next 24h)");
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextSize(2);
+  lcd.setCursor(20, 20);
+  lcd.print("Hourly Forecast (Next 24h)");
 
   JsonArray hourly = dataManager.getWeatherData()["hourly"];
 
@@ -105,26 +116,26 @@ void drawHourlyForecastScreen() {
       struct tm *timeinfo = localtime(&hourTime);
       strftime(timeStr, sizeof(timeStr), "%H:%M", timeinfo);
 
-      tft.setCursor(20, y);
-      tft.print(timeStr);
-      tft.print(" | ");
-      tft.print(hour["temp"].as<int>());
-      tft.print("C | ");
+      lcd.setCursor(20, y);
+      lcd.print(timeStr);
+      lcd.print(" | ");
+      lcd.print(hour["temp"].as<int>());
+      lcd.print("C | ");
       const char *desc = hour["weather"][0]["main"] | "N/A";
-      tft.print(desc);
+      lcd.print(desc);
 
       y += 40;
       hourCount++;
     }
   } else {
-    tft.setTextSize(2);
-    tft.setCursor(20, 100);
-    tft.print("Loading forecast...");
+    lcd.setTextSize(2);
+    lcd.setCursor(20, 100);
+    lcd.print("Loading forecast...");
   }
 
-  tft.setTextSize(1);
-  tft.setCursor(20, tft.height() - 30);
-  tft.print("Swipe or tap -> to see more hours");
+  lcd.setTextSize(1);
+  lcd.setCursor(20, lcd.height() - 30);
+  lcd.print("Swipe or tap -> to see more hours");
 }
 
 // Screen 3: Daily Forecast
@@ -272,4 +283,4 @@ void drawSystemScreen() {
   tft.print("h ");
   tft.print((uptime % 3600) / 60);
   tft.println("m");
-}
+} */

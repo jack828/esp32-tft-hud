@@ -1,6 +1,7 @@
 #include "screen-manager.h"
+#include <Arduino.h>
 
-ScreenManager::ScreenManager(TFT_eSPI& tft) : tft(tft) {}
+ScreenManager::ScreenManager() {}
 
 void ScreenManager::registerScreen(ScreenFunction screen) {
   if (screenCount < 6) {
@@ -26,6 +27,7 @@ void ScreenManager::render() {
 
 void ScreenManager::checkAutoRotate() {
   if (autoRotate && millis() - lastScreenChange > SCREEN_CHANGE_INTERVAL) {
+    Serial.println("Rotating...");
     nextScreen();
   }
 }

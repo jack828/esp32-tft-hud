@@ -1,10 +1,12 @@
-#include "FT6236.h"
+#define LGFX_MAKERFABS_TOUCHCAMERA
+#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
+static LGFX lcd;
+static LGFX_Sprite sprite(&lcd);
 #include "credentials.h"
 #include "definitions.h"
 #include "utils.h"
 #include <NTPClient.h>
-#include <SPI.h>
-#include <TFT_eSPI.h>
 #include <WiFiMulti.h>
 #include <WiFiUdp.h>
 #include <WiFiClient.h>
@@ -20,27 +22,24 @@ WiFiUDP ntpUDP;
 // TODO timezone, available in weather api
 NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
-TFT_eSPI tft = TFT_eSPI();
-DataManager dataManager;
-ScreenManager screenManager(tft);
-
-TFT_eSPI_Button btnL, btnR;
-TFT_eSPI_Button *buttons[] = { &btnL, &btnR };
-uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
+// TFT_eSPI_Button btnL, btnR;
+// TFT_eSPI_Button *buttons[] = { &btnL, &btnR };
+// uint8_t buttonCount = sizeof(buttons) / sizeof(buttons[0]);
 
 int32_t lastRender = 0;
 bool transitioning = false;
+// #include <lvgl.h>
+
+DataManager dataManager;
+ScreenManager screenManager;
 
 void setup() {
   Serial.begin(115200);
 
   initTft();
-  initTouch();
   initWifi();
   initNtp();
-
-  tft.fillScreen(TFT_BLACK);
-  tft.setSwapBytes(!tft.getSwapBytes());
+  initDataManager();
 
   // Register all screens
   screenManager.registerScreen(drawClockWeatherScreen);
@@ -51,22 +50,32 @@ void setup() {
   // screenManager.registerScreen(drawSystemScreen);
 
   // Setup navigation buttons
-  btnL.initButtonUL(&tft, tft.width() - 105, tft.height() - 30, 50, 30,
-                    TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("<-"), 1);
-  btnL.setLabelDatum(0, 0, MC_DATUM);
+  // btnL.initButtonUL(&tft, tft.width() - 105, tft.height() - 30, 50, 30,
+  //                   TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("<-"), 1);
+  // btnL.setLabelDatum(0, 0, MC_DATUM);
+  //
+  // btnR.initButtonUL(&tft, tft.width() - 50, tft.height() - 30, 50, 30,
+  //                   TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("->"), 1);
+  // btnR.setLabelDatum(0, 0, MC_DATUM);
+  // btnR.drawButton();
+  // btnL.drawButton();
+  // TODO how to persist?
+  if (false && lcd.touch()) {
+    Serial.println("Has touch");
+    if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
-  btnR.initButtonUL(&tft, tft.width() - 50, tft.height() - 30, 50, 30,
-                    TFT_WHITE, TFT_WHITE, TFT_BLACK, const_cast<char *>("->"), 1);
-  btnR.setLabelDatum(0, 0, MC_DATUM);
-  btnR.drawButton();
-  btnL.drawButton();
+    lcd.setTextDatum(textdatum_t::middle_center);
+    lcd.drawString("touch the arrow marker.", lcd.width()>>1, lcd.height() >> 1);
+    lcd.setTextDatum(textdatum_t::top_left);
 
-    dataManager.updateWeather(LATITUDE, LONGITUDE, WEATHER_API_KEY);
-    // dataManager.updateCalendar(CALENDAR_URL);
-    // dataManager.updateSunTimes(LATITUDE, LONGITUDE);
+    std::uint16_t fg = TFT_WHITE;
+    std::uint16_t bg = TFT_BLACK;
+    if (lcd.isEPD()) std::swap(fg, bg);
+    lcd.calibrateTouch(nullptr, fg, bg, std::max(lcd.width(), lcd.height()) >> 3);
+  }
 }
 
-void drawControls() {
+/* void drawControls() {
   int pos[2] = { 0, 0 };
   ft6236_pos(pos);
 
@@ -94,13 +103,15 @@ void drawControls() {
       btn->drawButton();
     }
   }
-}
+} */
 
 void loop() {
+  unsigned long frameStart = millis();
   if (transitioning) {
     transitioning = false;
-    tft.fillScreen(TFT_BLACK);
+    lcd.fillScreen(TFT_BLACK);
   }
+    // lcd.fillScreen(TFT_BLACK);
 
   // Check for auto-rotation every 60 seconds
   screenManager.checkAutoRotate();
@@ -109,46 +120,50 @@ void loop() {
   if (dataManager.shouldUpdateWeather()) {
     dataManager.updateWeather(LATITUDE, LONGITUDE, WEATHER_API_KEY);
   }
-  if (dataManager.shouldUpdateCalendar()) {
+  /* if (dataManager.shouldUpdateCalendar()) {
     dataManager.updateCalendar(CALENDAR_URL);
   }
   if (dataManager.shouldUpdateSun()) {
     dataManager.updateSunTimes(LATITUDE, LONGITUDE);
-  }
+  } */
 
   // Render current screen
-  drawControls();
+  // drawControls();
   screenManager.render();
 
-  delay(50); // 20 FPS
+  // TODO wifiKeepAlive task
+  // TODO time budget and delay so that fps target met
+  // return this->updateInterval - (millis() - frameStart);
+  //
+  /* int remainingTimeBudget = ui.update();
+
+  if (remainingTimeBudget > 0) {
+    // You can do some work here
+    // Don't do stuff if you are below your
+    // time budget.
+    delay(remainingTimeBudget);
+  } */
+  lcd.setCursor(0, lcd.height() - 16);
+  lcd.print(F(" FPS: "));
+  lcd.print((1 * 1000) / (millis() - frameStart));
+  lcd.println("    ");
+  delay(50);  // 20 FPS
 }
 
 void initTft() {
-  tft.init();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
-}
+  lcd.init();
+  lcd.setRotation(3);
+  lcd.setBrightness(128);
+  lcd.setColorDepth(16);
 
-void initTouch() {
-  byte error;
-  Wire.begin(I2C_SDA, I2C_SCL);
-  Wire.beginTransmission(TOUCH_I2C_ADD);
-  error = Wire.endTransmission();
-  if (error == 0) {
-    Serial.print("I2C device found at address 0x");
-    Serial.print(TOUCH_I2C_ADD, HEX);
-    Serial.println("  !");
-  } else {
-    Serial.print("Unknown error at address 0x");
-    Serial.println(TOUCH_I2C_ADD, HEX);
-  }
+  lcd.fillScreen(TFT_BLACK);
 }
 
 void initWifi() {
-  tft.setCursor(0, 0, 2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setCursor(0, 0);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   Serial.print(F("[ WIFI ] Connecting..."));
-  tft.print(F("[ WIFI ] Connecting..."));
+  lcd.print(F("[ WIFI ] Connecting..."));
 
   WiFi.mode(WIFI_STA);
   wifiMulti.addAP(WIFI_SSID_1, WIFI_PSK_1);
@@ -160,7 +175,7 @@ void initWifi() {
     Serial.flush();
     ESP.restart();
   }
-  tft.println(F("done!"));
+  lcd.println(F("done!"));
   Serial.print(F("\n[ WIFI ] connected, SSID: "));
   Serial.print(WiFi.SSID());
   Serial.print(F(", IP:"));
@@ -170,14 +185,23 @@ void initWifi() {
 
 void initNtp() {
   Serial.println(F("[ NTP ] Obtaining time..."));
-  tft.print(F("[ NTP ] Obtaining time..."));
+  lcd.print(F("[ NTP ] Obtaining time..."));
   timeClient.begin();
   while (!timeClient.update()) {
     timeClient.forceUpdate();
   }
-  tft.println(F("done!"));
+  lcd.println(F("done!"));
   Serial.print(F("[ NTP ] time: "));
   Serial.println(timeClient.getFormattedTime());
   Serial.print(F("[ NTP ] epoch: "));
   Serial.println(timeClient.getEpochTime());
+}
+
+void initDataManager() {
+  Serial.println(F("[ DataManager ] Getting initial data..."));
+  lcd.print(F("[ DataManager ] Getting initial data..."));
+  dataManager.updateWeather(LATITUDE, LONGITUDE, WEATHER_API_KEY);
+  // dataManager.updateCalendar(CALENDAR_URL);
+  // dataManager.updateSunTimes(LATITUDE, LONGITUDE);
+  lcd.println(F("done!"));
 }
