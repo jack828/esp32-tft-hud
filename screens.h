@@ -1,8 +1,8 @@
 #pragma once
 #include "data-manager.h"
-#include <NTPClient.h>
-#include <LovyanGFX.hpp>
 #include <LGFX_AUTODETECT.hpp>
+#include <LovyanGFX.hpp>
+#include <NTPClient.h>
 #include <cstring>
 
 extern LGFX lcd;
@@ -26,21 +26,30 @@ void drawClockWeatherScreen() {
   int16_t MIDDLE_BAR_HEIGHT = (lcd.height() / 2) - TOP_BAR_HEIGHT;
   int16_t SIDE_ICON_WIDTH = lcd.width() / 5;
   int16_t CENTRE_SEGMENT_WIDTH = (lcd.width() / 2) - SIDE_ICON_WIDTH;
+  int16_t PAD = 2;
 
   // TOP_BAR
   lcd.drawRect(0, 0, lcd.width(), TOP_BAR_HEIGHT, TFT_GREEN);
   // BOTTOM_BAR
-  lcd.drawRect(0, lcd.height() - TOP_BAR_HEIGHT, lcd.width(), TOP_BAR_HEIGHT, TFT_GREEN);
+  lcd.drawRect(0, lcd.height() - TOP_BAR_HEIGHT, lcd.width(), TOP_BAR_HEIGHT,
+               TFT_GREEN);
 
   // MIDDLE_GROUP
   // WEATHER_ICON
   lcd.drawRect(0, TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  int iconPadding = 4;
+  lcd.drawRect(iconPadding, TOP_BAR_HEIGHT + iconPadding,
+               SIDE_ICON_WIDTH - (iconPadding * 2),
+               SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
   // TEMP_AND_DESCRIPTION
-  lcd.drawRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  lcd.drawRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH,
+               MIDDLE_BAR_HEIGHT, TFT_BLUE);
   // RH_hPa_WIND
-  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH,
+               MIDDLE_BAR_HEIGHT, TFT_BLUE);
   // WIND_COMPASS
-  lcd.drawRect(lcd.width() - (SIDE_ICON_WIDTH), TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
+  lcd.drawRect(lcd.width() - (SIDE_ICON_WIDTH), TOP_BAR_HEIGHT, SIDE_ICON_WIDTH,
+               MIDDLE_BAR_HEIGHT, TFT_BLUE);
   // end MIDDLE_GROUP
 
   lcd.drawRect(0, lcd.height() / 2, lcd.width(), MIDDLE_BAR_HEIGHT, TFT_RED);
@@ -49,7 +58,7 @@ void drawClockWeatherScreen() {
   if (lastTime != newTime) {
     lcd.setTextSize(4);
     lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    lcd.drawString(newTime, 2, TOP_BAR_HEIGHT / 2);
+    lcd.drawString(newTime, PAD, TOP_BAR_HEIGHT / 2);
     lastTime = newTime;
   }
 
@@ -60,65 +69,89 @@ void drawClockWeatherScreen() {
 
   if (strcmp(lastDate, dateStr) != 0) {
     lcd.setTextSize(2);
-    lcd.drawString(dateStr, lcd.width() - lcd.textWidth(dateStr), TOP_BAR_HEIGHT / 2);
+    lcd.drawString(dateStr, lcd.width() - lcd.textWidth(dateStr),
+                   TOP_BAR_HEIGHT / 2);
     strcpy(lastDate, dateStr);
   }
-// TODO use lcd.setClipRect to define drawing bounds to not have to care about overdraw
-  if (dataManager.getLastWeatherUpdate() > lastWeatherDraw) {
-    JsonDocument current = dataManager.getWeatherData();
-    if (!current.isNull()) {
+  // TODO use lcd.setClipRect to define drawing bounds to not have to care about
+  // overdraw if (dataManager.getLastWeatherUpdate() > lastWeatherDraw) {
+  //   JsonDocument current = dataManager.getWeatherData();
+  //   if (!current.isNull()) {
 
+  // float temp = current["main"]["temp"].as<float>()
+  float temp = 9.69;
 
+  char tempStr[6];
+  sprintf(tempStr, "%.2f", temp);
+  lcd.setTextSize(4);
+  lcd.setTextDatum(top_left);
+  int tempWidth = lcd.textWidth(tempStr);
+  int tempSpacing = (CENTRE_SEGMENT_WIDTH - tempWidth) / 2;
+  lcd.setCursor(SIDE_ICON_WIDTH + tempSpacing, TOP_BAR_HEIGHT + tempSpacing);
+  lcd.print(tempStr);
 
-      /* lcd.setTextSize(2);
-      lcd.setCursor(0, 50);
-      lcd.print("T: ");
-      lcd.print(current["main"]["temp"].as<int>());
-      lcd.print("C");
+  lcd.setTextSize(2);
 
-      lcd.print(" | ");
-      lcd.print("H: ");
-      lcd.print(current["main"]["humidity"].as<int>());
-      lcd.print("%");
+  // TODO clip to rect
+  String description = "scattered clouds";
+  int descriptionWidth = lcd.textWidth(description);
+  int descriptionX =
+      descriptionWidth > SIDE_ICON_WIDTH + CENTRE_SEGMENT_WIDTH
+          ? PAD
+          : (SIDE_ICON_WIDTH + CENTRE_SEGMENT_WIDTH - descriptionWidth) / 2;
+  lcd.setTextDatum(bottom_left);
+  lcd.setCursor(descriptionX, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT);
+  lcd.print(description);
 
-      lcd.print(" | ");
-      lcd.print("P: ");
-      lcd.print(current["main"]["pressure"].as<int>());
-      lcd.println(" hPa");
+  /* lcd.setTextSize(2);
+  lcd.setCursor(0, 50);
+  lcd.print("T: ");
+  lcd.print(temp);
+  lcd.print("C");
 
-      // lcd.setCursor(y, 0);
-      const char *desc = current["weather"][0]["main"] | "N/A";
-      lcd.println(desc);
+  lcd.print(" | ");
+  lcd.print("H: ");
+  lcd.print(current["main"]["humidity"].as<int>());
+  lcd.print("%");
 
-      // lcd.setCursor(y, 0);
-      lcd.print("W: ");
-      lcd.print(current["wind"]["speed"].as<float>());
-      lcd.print("m/s ");
-      lcd.print(current["wind"]["deg"].as<int>());
-      lcd.print(" ");
-      if(!current["wind"]["gust"].isNull()) {
-        lcd.print(current["wind"]["gust"].as<float>());
-        lcd.println("m/s");
-      } else {
-        lcd.println();
-      }
+  lcd.print(" | ");
+  lcd.print("P: ");
+  lcd.print(current["main"]["pressure"].as<int>());
+  lcd.println(" hPa");
 
-      // lcd.setCursor(20, 280);
-      if (!current["clouds"].isNull()) {
-        lcd.print("C: ");
-        lcd.print(current["clouds"]["all"].as<int>());
-        lcd.print("%");
-      }
-*/
-      // TODO image
-      // https://wsrv.nl/?url=openweathermap.org/payload/api/media/file/10d%402x.png&output=jpg&quality=100
-    } else {
-      // lcd.setTextSize(2);
-      // lcd.setCursor(20, 160);
-      // lcd.print("Weather data loading...");
-    }
-    lastWeatherDraw = millis();
+  // lcd.setCursor(y, 0);
+  const char *desc = current["weather"][0]["main"] | "N/A";
+  lcd.println(desc);
+
+  // lcd.setCursor(y, 0);
+  lcd.print("W: ");
+  lcd.print(current["wind"]["speed"].as<float>());
+  lcd.print("m/s ");
+  lcd.print(current["wind"]["deg"].as<int>());
+  lcd.print(" ");
+  if(!current["wind"]["gust"].isNull()) {
+    lcd.print(current["wind"]["gust"].as<float>());
+    lcd.println("m/s");
+  } else {
+    lcd.println();
   }
+
+  // lcd.setCursor(20, 280);
+  if (!current["clouds"].isNull()) {
+    lcd.print("C: ");
+    lcd.print(current["clouds"]["all"].as<int>());
+    lcd.print("%");
+  }
+*/
+  // TODO image
+  // https://wsrv.nl/?url=openweathermap.org/payload/api/media/file/10d%402x.png&output=jpg&quality=100
+  // } else {
+  // lcd.setTextSize(2);
+  // lcd.setCursor(20, 160);
+  // lcd.print("Weather data loading...");
+  // }
+  lastWeatherDraw = millis();
+  // }
 }
 /*
 // Screen 2: Hourly Forecast
