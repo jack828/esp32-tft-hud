@@ -13,8 +13,97 @@ unsigned long lastFullRedraw = 0;
 const unsigned long REDRAW_INTERVAL = 1000;
 
 String lastTime = "";
-char lastDate[32] = {0};
+char lastDate[32] = { 0 };
 unsigned long lastWeatherDraw = 0;
+
+void drawWindCompass(int centreX, int centreY, int radius, int degrees) {
+  int tickLength = 5;
+  int needleWidth = tickLength;
+  int dotCount = 30;
+  int lineCount = 12;
+  float dotRadius = 1;
+  float radiusOuter = radius;
+  float radiusInner = radius - tickLength;
+  float radiusDots = radius - dotRadius;
+
+  // Clear render area
+  lcd.fillCircle(centreX, centreY, radius, TFT_BLACK);
+
+  // Ordinal directions
+  // Additions are minor adjustments to make it look perfect
+  lcd.setTextSize(1);
+  lcd.setTextDatum(textdatum_t::top_centre);
+  lcd.drawString("N", centreX + 1, centreY - radius + lcd.fontHeight());
+  lcd.setTextDatum(textdatum_t::bottom_centre);
+  lcd.drawString("S", centreX + 1, centreY + radius - lcd.fontHeight() + 2);
+  lcd.setTextDatum(textdatum_t::middle_left);
+  lcd.drawString("W", centreX - radius + lcd.textWidth("W") + 2, centreY + 1);
+  lcd.setTextDatum(textdatum_t::middle_right);
+  lcd.drawString("E", centreX + radius - lcd.textWidth("E"), centreY + 1);
+
+  float sx = 0, sy = 0;
+  uint16_t x0 = 0, x1 = 0, y0 = 0, y1 = 0;
+
+  // Lines
+  for (int angle = 0; angle < 360; angle += 360 / lineCount) {
+    sx = cos((angle - 90) * 0.0174532925);
+    sy = sin((angle - 90) * 0.0174532925);
+    x0 = sx * radiusOuter + centreX;
+    y0 = sy * radiusOuter + centreY;
+    x1 = sx * radiusInner + centreX;
+    y1 = sy * radiusInner + centreY;
+
+    lcd.drawLine(x0, y0, x1, y1, TFT_GREEN);
+  }
+
+  // Small dots
+  for (int angle = 0; angle < 360; angle += 360 / dotCount) {
+    sx = cos((angle - 90) * 0.0174532925);
+    sy = sin((angle - 90) * 0.0174532925);
+    x0 = sx * radiusDots + centreX;
+    y0 = sy * radiusDots + centreY;
+
+    lcd.drawPixel(x0, y0, TFT_WHITE);
+
+    if (angle == 0 || angle == 90 || angle == 180 || angle == 270) {
+      lcd.fillCircle(x0, y0, dotRadius, TFT_WHITE);
+    }
+  }
+
+  // Bigger dots
+  for (int angle = 0; angle < 360; angle += 90) {
+    sx = cos((angle - 90) * 0.0174532925);
+    sy = sin((angle - 90) * 0.0174532925);
+    x0 = sx * radiusDots + centreX;
+    y0 = sy * radiusDots + centreY;
+
+    lcd.fillCircle(x0, y0, dotRadius, TFT_WHITE);
+  }
+
+  // Centre circle
+  lcd.fillCircle(centreX, centreY, dotRadius, TFT_WHITE);
+
+  // Directional marker
+  sx = cos((degrees - 90) * 0.0174532925);
+  sy = sin((degrees - 90) * 0.0174532925);
+  // Tip of arrow (points outward along direction)
+  int tipX = sx * radiusInner + centreX;
+  int tipY = sy * radiusInner + centreY;
+
+  // Back corners (perpendicular to direction, passing through centre)
+  // Perpendicular vector is (-sy, sx)
+  int back_leftX = centreX - sy * needleWidth;
+  int back_leftY = centreY + sx * needleWidth;
+
+  int back_rightX = centreX + sy * needleWidth;
+  int back_rightY = centreY - sx * needleWidth;
+
+  lcd.fillTriangle(tipX, tipY, back_leftX, back_leftY, back_rightX, back_rightY, TFT_RED);
+
+  int opp_tipX = centreX - sx * needleWidth;
+  int opp_tipY = centreY - sy * needleWidth;
+  lcd.fillTriangle(opp_tipX, opp_tipY, back_leftX, back_leftY, back_rightX, back_rightY, TFT_BLUE);
+}
 
 // Screen 1: Clock + Current Weather
 void drawClockWeatherScreen() {
