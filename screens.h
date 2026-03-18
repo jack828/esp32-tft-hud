@@ -1,9 +1,6 @@
 #pragma once
 #include "data-manager.h"
-#include "lgfx/v1/misc/enum.hpp"
-#define LGFX_MAKERFABS_TOUCHCAMERA
-#include <LGFX_AUTODETECT.hpp>
-#include <LovyanGFX.hpp>
+#include "lgfx_setup.h"
 #include <NTPClient.h>
 #include <cstring>
 

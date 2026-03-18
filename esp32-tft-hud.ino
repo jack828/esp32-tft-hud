@@ -1,6 +1,4 @@
-#define LGFX_MAKERFABS_TOUCHCAMERA
-#include <LovyanGFX.hpp>
-#include <LGFX_AUTODETECT.hpp>
+#include "lgfx_setup.h"
 static LGFX lcd;
 static LGFX_Sprite sprite(&lcd);
 #include "credentials.h"
