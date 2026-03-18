@@ -88,8 +88,8 @@ void drawClockWeatherScreen() {
   lcd.setTextDatum(textdatum_t::top_left);
   int tempWidth = lcd.textWidth(tempStr);
   int tempSpacing = (CENTRE_SEGMENT_WIDTH - tempWidth) / 2;
-  lcd.setCursor(SIDE_ICON_WIDTH + tempSpacing, TOP_BAR_HEIGHT + (PAD * 4));
-  lcd.print(tempStr);
+  lcd.drawString(tempStr, SIDE_ICON_WIDTH + tempSpacing,
+                 TOP_BAR_HEIGHT + (PAD * 4));
 
   lcd.setTextSize(2);
 
@@ -101,8 +101,7 @@ void drawClockWeatherScreen() {
           ? PAD
           : (SIDE_ICON_WIDTH + CENTRE_SEGMENT_WIDTH - descriptionWidth) / 2;
   lcd.setTextDatum(textdatum_t::bottom_left);
-  lcd.setCursor(descriptionX, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT);
-  lcd.print(description);
+  lcd.drawString(description, descriptionX, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT);
 
   /// humidity, pressure, wind speed stack
   int STACK_ITEM_HEIGHT = MIDDLE_BAR_HEIGHT / 3;
@@ -119,8 +118,7 @@ void drawClockWeatherScreen() {
                STACK_ITEM_HEIGHT, TFT_WHITE);
 
   lcd.setTextDatum(textdatum_t::top_left);
-  lcd.setCursor(humidityX, itemY);
-  lcd.print(humidityStr);
+  lcd.drawString(humidityStr, humidityX, itemY);
   itemY += STACK_ITEM_HEIGHT;
 
   // pressure
@@ -136,8 +134,7 @@ void drawClockWeatherScreen() {
                CENTRE_SEGMENT_WIDTH, STACK_ITEM_HEIGHT, TFT_WHITE);
 
   lcd.setTextDatum(textdatum_t::top_left);
-  lcd.setCursor(pressureX, itemY);
-  lcd.print(pressureStr);
+  lcd.drawString(pressureStr, pressureX, itemY);
   itemY += STACK_ITEM_HEIGHT;
 
   // wind
@@ -152,8 +149,7 @@ void drawClockWeatherScreen() {
                CENTRE_SEGMENT_WIDTH, STACK_ITEM_HEIGHT, TFT_WHITE);
 
   lcd.setTextDatum(textdatum_t::top_left);
-  lcd.setCursor(windX, itemY);
-  lcd.print(windStr);
+  lcd.drawString(windStr, windX, itemY);
 
   /// wind direction compass
   lcd.drawRect((lcd.width() - SIDE_ICON_WIDTH) + iconPadding,
