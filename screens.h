@@ -1,5 +1,7 @@
 #pragma once
 #include "data-manager.h"
+#include "lgfx/v1/misc/enum.hpp"
+#define LGFX_MAKERFABS_TOUCHCAMERA
 #include <LGFX_AUTODETECT.hpp>
 #include <LovyanGFX.hpp>
 #include <NTPClient.h>
@@ -20,7 +22,7 @@ unsigned long lastWeatherDraw = 0;
 // Screen 1: Clock + Current Weather
 void drawClockWeatherScreen() {
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-  lcd.setTextDatum(middle_left);
+  lcd.setTextDatum(textdatum_t::middle_left);
 
   int16_t TOP_BAR_HEIGHT = 50;
   int16_t MIDDLE_BAR_HEIGHT = (lcd.height() / 2) - TOP_BAR_HEIGHT;
@@ -30,14 +32,11 @@ void drawClockWeatherScreen() {
 
   // TOP_BAR
   lcd.drawRect(0, 0, lcd.width(), TOP_BAR_HEIGHT, TFT_GREEN);
-  // BOTTOM_BAR
-  lcd.drawRect(0, lcd.height() - TOP_BAR_HEIGHT, lcd.width(), TOP_BAR_HEIGHT,
-               TFT_GREEN);
 
-  // MIDDLE_GROUP
+  // TOP MIDDLE_GROUP
   // WEATHER_ICON
   lcd.drawRect(0, TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
-  int iconPadding = 4;
+  int iconPadding = PAD * 2;
   lcd.drawRect(iconPadding, TOP_BAR_HEIGHT + iconPadding,
                SIDE_ICON_WIDTH - (iconPadding * 2),
                SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
@@ -50,9 +49,11 @@ void drawClockWeatherScreen() {
   // WIND_COMPASS
   lcd.drawRect(lcd.width() - (SIDE_ICON_WIDTH), TOP_BAR_HEIGHT, SIDE_ICON_WIDTH,
                MIDDLE_BAR_HEIGHT, TFT_BLUE);
-  // end MIDDLE_GROUP
+  // end TOP MIDDLE_GROUP
 
+  // BOTTOM MIDDLE_GROUP
   lcd.drawRect(0, lcd.height() / 2, lcd.width(), MIDDLE_BAR_HEIGHT, TFT_RED);
+  // end BOTTOM MIDDLE_GROUP
 
   String newTime = timeClient.getFormattedTime();
   if (lastTime != newTime) {
@@ -79,54 +80,87 @@ void drawClockWeatherScreen() {
   //   if (!current.isNull()) {
 
   // float temp = current["main"]["temp"].as<float>()
-  float temp = 9.69;
+  float temp = epochTime & 1 ? 9.69 : 10.22;
 
   char tempStr[6];
   sprintf(tempStr, "%.2f", temp);
   lcd.setTextSize(4);
-  lcd.setTextDatum(top_left);
+  lcd.setTextDatum(textdatum_t::top_left);
   int tempWidth = lcd.textWidth(tempStr);
   int tempSpacing = (CENTRE_SEGMENT_WIDTH - tempWidth) / 2;
-  lcd.setCursor(SIDE_ICON_WIDTH + tempSpacing, TOP_BAR_HEIGHT + tempSpacing);
+  lcd.setCursor(SIDE_ICON_WIDTH + tempSpacing, TOP_BAR_HEIGHT + (PAD * 4));
   lcd.print(tempStr);
 
   lcd.setTextSize(2);
 
   // TODO clip to rect
-  String description = "scattered clouds";
+  String description = epochTime & 1 ? "clear sky" : "scattered clouds";
   int descriptionWidth = lcd.textWidth(description);
   int descriptionX =
       descriptionWidth > SIDE_ICON_WIDTH + CENTRE_SEGMENT_WIDTH
           ? PAD
           : (SIDE_ICON_WIDTH + CENTRE_SEGMENT_WIDTH - descriptionWidth) / 2;
-  lcd.setTextDatum(bottom_left);
+  lcd.setTextDatum(textdatum_t::bottom_left);
   lcd.setCursor(descriptionX, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT);
   lcd.print(description);
 
-  /* lcd.setTextSize(2);
-  lcd.setCursor(0, 50);
-  lcd.print("T: ");
-  lcd.print(temp);
-  lcd.print("C");
+  /// humidity, pressure, wind speed stack
+  int STACK_ITEM_HEIGHT = MIDDLE_BAR_HEIGHT / 3;
+  int itemY = TOP_BAR_HEIGHT + (PAD * 4);
+  // humidity
+  int humidity =
+      epochTime & 1 ? 1 : 42; // current["main"]["humidity"].as<int>();
+  char humidityStr[7];
+  sprintf(humidityStr, "%d%% rH", humidity);
+  int humidityWidth = lcd.textWidth(humidityStr);
+  int humidityX =
+      (lcd.width() / 2) + ((CENTRE_SEGMENT_WIDTH - humidityWidth) / 2);
+  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH,
+               STACK_ITEM_HEIGHT, TFT_WHITE);
 
-  lcd.print(" | ");
-  lcd.print("H: ");
-  lcd.print(current["main"]["humidity"].as<int>());
-  lcd.print("%");
+  lcd.setTextDatum(textdatum_t::top_left);
+  lcd.setCursor(humidityX, itemY);
+  lcd.print(humidityStr);
+  itemY += STACK_ITEM_HEIGHT;
 
-  lcd.print(" | ");
-  lcd.print("P: ");
-  lcd.print(current["main"]["pressure"].as<int>());
-  lcd.println(" hPa");
+  // pressure
+  int pressure =
+      epochTime & 1 ? 1069 : 420; // current["main"]["pressure"].as<int>();
+  char pressureStr[9];
+  sprintf(pressureStr, "%d hPa", pressure);
+  int pressureWidth = lcd.textWidth(pressureStr);
+  int pressureX =
+      (lcd.width() / 2) + ((CENTRE_SEGMENT_WIDTH - pressureWidth) / 2);
 
-  // lcd.setCursor(y, 0);
-  const char *desc = current["weather"][0]["main"] | "N/A";
-  lcd.println(desc);
+  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT + STACK_ITEM_HEIGHT,
+               CENTRE_SEGMENT_WIDTH, STACK_ITEM_HEIGHT, TFT_WHITE);
 
-  // lcd.setCursor(y, 0);
-  lcd.print("W: ");
-  lcd.print(current["wind"]["speed"].as<float>());
-  lcd.print("m/s ");
+  lcd.setTextDatum(textdatum_t::top_left);
+  lcd.setCursor(pressureX, itemY);
+  lcd.print(pressureStr);
+  itemY += STACK_ITEM_HEIGHT;
+
+  // wind
+  float wind =
+      epochTime & 1 ? 2.5f : 10.0f; // current["main"]["wind"].as<int>();
+  char windStr[9];
+  sprintf(windStr, "%.1f m/s", wind);
+  int windWidth = lcd.textWidth(windStr);
+  int windX = (lcd.width() / 2) + ((CENTRE_SEGMENT_WIDTH - windWidth) / 2);
+
+  lcd.drawRect((lcd.width() / 2), TOP_BAR_HEIGHT + (STACK_ITEM_HEIGHT * 2),
+               CENTRE_SEGMENT_WIDTH, STACK_ITEM_HEIGHT, TFT_WHITE);
+
+  lcd.setTextDatum(textdatum_t::top_left);
+  lcd.setCursor(windX, itemY);
+  lcd.print(windStr);
+
+  /// wind direction compass
+  lcd.drawRect((lcd.width() - SIDE_ICON_WIDTH) + iconPadding,
+               TOP_BAR_HEIGHT + iconPadding,
+               SIDE_ICON_WIDTH - (iconPadding * 2),
+               SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
+  /*
   lcd.print(current["wind"]["deg"].as<int>());
   lcd.print(" ");
   if(!current["wind"]["gust"].isNull()) {
@@ -143,6 +177,31 @@ void drawClockWeatherScreen() {
     lcd.print("%");
   }
 */
+
+  // BOTTOM_BAR
+  lcd.drawRect(0, lcd.height() - TOP_BAR_HEIGHT, lcd.width(), TOP_BAR_HEIGHT,
+               TFT_GREEN);
+
+  lcd.setTextSize(4);
+  lcd.setTextDatum(textdatum_t::middle_right);
+  int sunTimesY = lcd.height() - TOP_BAR_HEIGHT + (lcd.fontHeight() / 1);
+  // TODO timezone
+  time_t sunRiseTime = 1773728936; // TODO
+  struct tm *sunRiseTimeInfo = localtime(&sunRiseTime);
+  char sunRiseStr[16];
+  strftime(sunRiseStr, sizeof(sunRiseStr), "%H:%M", sunRiseTimeInfo);
+  int sunRiseX = lcd.width() / 2 -
+                 (PAD * 4); // - lcd.textWidth(sunRiseStr);// - (PAD * 4);
+  lcd.drawString(sunRiseStr, sunRiseX, sunTimesY);
+
+  // TODO timezone
+  lcd.setTextDatum(textdatum_t::middle_left);
+  time_t sunSetTime = 1773771882; // TODO
+  struct tm *sunSetTimeInfo = localtime(&sunSetTime);
+  char sunSetStr[16];
+  strftime(sunSetStr, sizeof(sunSetStr), "%H:%M", sunSetTimeInfo);
+  int sunSetX = lcd.width() / 2 + (PAD * 4);
+  lcd.drawString(sunSetStr, sunSetX, sunTimesY);
   // TODO image
   // https://wsrv.nl/?url=openweathermap.org/payload/api/media/file/10d%402x.png&output=jpg&quality=100
   // } else {
