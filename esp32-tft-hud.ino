@@ -1,4 +1,5 @@
 #include "lgfx_setup.h"
+// static lgfx::Panel_ILI9488 panel;
 static LGFX lcd;
 static LGFX_Sprite sprite(&lcd);
 #include "credentials.h"
@@ -10,10 +11,12 @@ static LGFX_Sprite sprite(&lcd);
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <time.h>
 #include "data-manager.h"
 #include "screen-manager.h"
 #include "screens.h"
+#include "FS.h"
+#include "SD.h"
+#include "SPI.h"
 
 WiFiMulti wifiMulti;
 WiFiUDP ntpUDP;
@@ -26,7 +29,6 @@ NTPClient timeClient(ntpUDP, "uk.pool.ntp.org", 0, 60000);
 
 int32_t lastRender = 0;
 bool transitioning = false;
-// #include <lvgl.h>
 
 DataManager dataManager;
 ScreenManager screenManager;
@@ -34,7 +36,14 @@ ScreenManager screenManager;
 void setup() {
   Serial.begin(115200);
 
+  pinMode(SD_CS, OUTPUT);
+  pinMode(SD_CLK, OUTPUT);
+  pinMode(SD_MOSI, OUTPUT);
+  pinMode(SD_MISO, INPUT);
+
+  SPI_OFF_SD;
   initLcd();
+  initSd();
   // initWifi();
   // initNtp();
   // initDataManager();
@@ -65,7 +74,7 @@ void setup() {
     if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
     lcd.setTextDatum(textdatum_t::middle_center);
-    lcd.drawString("touch the arrow marker.", lcd.width()>>1, lcd.height() >> 1);
+    lcd.drawString("touch the arrow marker.", lcd.width() >> 1, lcd.height() >> 1);
     lcd.setTextDatum(textdatum_t::top_left);
 
     std::uint16_t fg = TFT_WHITE;
@@ -113,7 +122,7 @@ void loop() {
     transitioning = false;
     lcd.fillScreen(TFT_BLACK);
   }
-    // lcd.fillScreen(TFT_BLACK);
+  // lcd.fillScreen(TFT_BLACK);
 
   // Check for auto-rotation every 60 seconds
   screenManager.checkAutoRotate();
@@ -147,19 +156,85 @@ void loop() {
   } */
   lcd.setTextSize(2);
   lcd.setCursor(2, lcd.height() - lcd.fontHeight() - 2);
-  lcd.print(F("FPS: "));
+  lcd.fillRect(2, lcd.height() - lcd.fontHeight() - 10, 100, lcd.fontHeight() * 2, TFT_BLACK);
+  lcd.print("T:");
   unsigned long updateTime = millis() - frameStart;
-  lcd.print((1 * 1000) / max(updateTime, 1LU));
+  lcd.print(updateTime);
   delay(50);  // 20 FPS
+  static unsigned long last_check = 0;
+  if (millis() - last_check > 5000) {
+    Serial.printf("Free heap: %lu bytes\n", esp_get_free_heap_size());
+    last_check = millis();
+  }
 }
 
 void initLcd() {
   lcd.init();
+
   lcd.setRotation(3);
   lcd.setBrightness(128);
   lcd.setColorDepth(16);
 
   lcd.fillScreen(TFT_BLACK);
+}
+
+void initSd() {
+  while (1) {
+    if (SD.begin(SD_CS, SPI, 40000000)) {
+      lcd.println("sd begin pass");
+      break;
+    }
+    lcd.println("sd begin fail, wait 1 sec");
+    delay(1000);
+  }
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE) {
+    lcd.println("No SD card attached");
+    return;
+  }
+  lcd.print("SD Card Type: ");
+  if (cardType == CARD_MMC) {
+    lcd.println("MMC");
+  } else if (cardType == CARD_SD) {
+    lcd.println("SDSC");
+  } else if (cardType == CARD_SDHC) {
+    lcd.println("SDHC");
+  } else {
+    lcd.println("UNKNOWN");
+  }
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  lcd.printf("SD Card Size: %lluMB\n", cardSize);
+  lcd.printf("Listing directory: /\n");
+
+  File root = SD.open("/icons");
+  if (!root) {
+    Serial.println("Failed to open directory");
+    return;
+  }
+  if (!root.isDirectory()) {
+    Serial.println("Not a directory");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      Serial.print("  DIR : ");
+      Serial.println(file.name());
+    } else {
+      Serial.print("  FILE: ");
+      Serial.print(file.name());
+      Serial.print("  SIZE: ");
+      Serial.println(file.size());
+    }
+    file = root.openNextFile();
+  }
+  file.close();
+  root.close();
+
+  SD.end();
+  SPI_OFF_SD;
 }
 
 void initWifi() {
