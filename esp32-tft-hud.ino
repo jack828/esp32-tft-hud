@@ -1,3 +1,4 @@
+#include "SD.h"
 #include "lgfx_setup.h"
 // static lgfx::Panel_ILI9488 panel;
 static LGFX lcd;
@@ -15,7 +16,6 @@ static LGFX_Sprite sprite(&lcd);
 #include "screen-manager.h"
 #include "screens.h"
 #include "FS.h"
-#include "SD.h"
 #include "SPI.h"
 
 WiFiMulti wifiMulti;
@@ -181,10 +181,10 @@ void initLcd() {
 void initSd() {
   while (1) {
     if (SD.begin(SD_CS, SPI, 40000000)) {
-      lcd.println("sd begin pass");
+      Serial.println("sd begin pass");
       break;
     }
-    lcd.println("sd begin fail, wait 1 sec");
+    Serial.println("sd begin fail, wait 1 sec");
     delay(1000);
   }
   uint8_t cardType = SD.cardType();
@@ -205,36 +205,8 @@ void initSd() {
   }
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
   lcd.printf("SD Card Size: %lluMB\n", cardSize);
-  lcd.printf("Listing directory: /\n");
-
-  File root = SD.open("/icons");
-  if (!root) {
-    Serial.println("Failed to open directory");
-    return;
-  }
-  if (!root.isDirectory()) {
-    Serial.println("Not a directory");
-    return;
-  }
-
-  File file = root.openNextFile();
-  while (file) {
-    if (file.isDirectory()) {
-      Serial.print("  DIR : ");
-      Serial.println(file.name());
-    } else {
-      Serial.print("  FILE: ");
-      Serial.print(file.name());
-      Serial.print("  SIZE: ");
-      Serial.println(file.size());
-    }
-    file = root.openNextFile();
-  }
-  file.close();
-  root.close();
 
   SD.end();
-  SPI_OFF_SD;
 }
 
 void initWifi() {

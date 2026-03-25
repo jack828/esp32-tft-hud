@@ -1,7 +1,9 @@
 #pragma once
 #include "data-manager.h"
+#include "definitions.h"
 #include "lgfx_setup.h"
 #include <NTPClient.h>
+#include <SD.h>
 #include <cstring>
 
 extern LGFX lcd;
@@ -124,9 +126,6 @@ void drawClockWeatherScreen() {
   // WEATHER_ICON
   lcd.drawRect(0, TOP_BAR_HEIGHT, SIDE_ICON_WIDTH, MIDDLE_BAR_HEIGHT, TFT_BLUE);
   int iconPadding = PAD * 2;
-  lcd.drawRect(iconPadding, TOP_BAR_HEIGHT + iconPadding,
-               SIDE_ICON_WIDTH - (iconPadding * 2),
-               SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
   // TEMP_AND_DESCRIPTION
   lcd.drawRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH,
                MIDDLE_BAR_HEIGHT, TFT_BLUE);
@@ -177,7 +176,26 @@ void drawClockWeatherScreen() {
   // if (dataManager.getLastWeatherUpdate() > lastWeatherDraw) {
   //   JsonDocument current = dataManager.getWeatherData();
   //   if (!current.isNull()) {
+  /// WEATHER ICON
+  lcd.drawRect(iconPadding, TOP_BAR_HEIGHT + iconPadding,
+               SIDE_ICON_WIDTH - (iconPadding * 2),
+               SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
 
+  if (SD.begin(SD_CS, SPI, 40000000)) {
+    String icon = "10d"; // current[blah]
+    int code = epochTime & 1 ? 501 : 802;
+    bool hasPrefix =
+      !(code > 699 && code < 800) && !(code > 899 && code < 1000);
+    char iconPath[32];
+    sprintf(iconPath, "/icons/%d%s.png", code, hasPrefix ? "d" : "");
+    // lcd.drawBmpFile("/icons/01d.bmp",0,0);
+    // lcd.drawBmpFile(SD, "/icons/01d.bmp", 0, 0);
+    lcd.drawPngFile(SD, iconPath, iconPadding, TOP_BAR_HEIGHT + iconPadding);
+    SD.end();
+    SPI_OFF_SD;
+  } else {
+    Serial.println("[SCREENS] SD card failed to open");
+  }
   // float temp = current["main"]["temp"].as<float>()
   /// TEMPERATURE
   float temp = epochTime & 1 ? 9.69 : 10.22;
