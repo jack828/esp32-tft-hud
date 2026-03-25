@@ -101,11 +101,13 @@ void drawWindCompass(int centreX, int centreY, int radius, int degrees) {
   int back_rightX = centreX + sy * needleWidth;
   int back_rightY = centreY - sx * needleWidth;
 
-  lcd.fillTriangle(tipX, tipY, back_leftX, back_leftY, back_rightX, back_rightY, TFT_RED);
+  lcd.fillTriangle(tipX, tipY, back_leftX, back_leftY, back_rightX, back_rightY,
+                   TFT_RED);
 
   int opp_tipX = centreX - sx * needleWidth;
   int opp_tipY = centreY - sy * needleWidth;
-  lcd.fillTriangle(opp_tipX, opp_tipY, back_leftX, back_leftY, back_rightX, back_rightY, TFT_BLUE);
+  lcd.fillTriangle(opp_tipX, opp_tipY, back_leftX, back_leftY, back_rightX,
+                   back_rightY, TFT_BLUE);
 }
 
 // Screen 1: Clock + Current Weather
@@ -143,9 +145,11 @@ void drawClockWeatherScreen() {
   //              SIDE_ICON_WIDTH - (iconPadding * 2), TFT_WHITE);
 
   int windCompassRadius = (SIDE_ICON_WIDTH - (iconPadding * 2)) / 2;
-  int windCompassX = (lcd.width() - SIDE_ICON_WIDTH) + iconPadding + windCompassRadius;
+  int windCompassX =
+    (lcd.width() - SIDE_ICON_WIDTH) + iconPadding + windCompassRadius;
   int windCompassY = TOP_BAR_HEIGHT + iconPadding + windCompassRadius;
-  drawWindCompass(windCompassX, windCompassY, windCompassRadius, degrees++ % 360);
+  drawWindCompass(windCompassX, windCompassY, windCompassRadius,
+                  degrees++ % 360);
   // BOTTOM MIDDLE_GROUP
   lcd.drawRect(0, lcd.height() / 2, lcd.width(), MIDDLE_BAR_HEIGHT, TFT_RED);
   // end BOTTOM MIDDLE_GROUP
@@ -207,21 +211,25 @@ void drawClockWeatherScreen() {
   int tempWidth = lcd.textWidth(tempStr);
   int tempHeight = lcd.fontHeight();
   int tempSpacing = (CENTRE_SEGMENT_WIDTH - tempWidth) / 2;
-  lcd.fillRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH, TOP_BAR_HEIGHT, TFT_BLACK);
+  lcd.fillRect(SIDE_ICON_WIDTH, TOP_BAR_HEIGHT, CENTRE_SEGMENT_WIDTH,
+               TOP_BAR_HEIGHT, TFT_BLACK);
   lcd.drawString(tempStr, SIDE_ICON_WIDTH + tempSpacing,
                  TOP_BAR_HEIGHT + (PAD * 4));
   lcd.setTextSize(2);
   int celsiusWidth = lcd.textWidth("CELSIUS");
   int celsiusSpacing = (CENTRE_SEGMENT_WIDTH - celsiusWidth) / 2;
-  lcd.drawString("CELSIUS", SIDE_ICON_WIDTH + celsiusSpacing, TOP_BAR_HEIGHT + (PAD * 4) + tempHeight);
+  lcd.drawString("CELSIUS", SIDE_ICON_WIDTH + celsiusSpacing,
+                 TOP_BAR_HEIGHT + (PAD * 4) + tempHeight);
   /// END TEMPERATURE
 
   /// WEATHER DESCRIPTION
   lcd.setTextSize(2);
   lcd.setTextDatum(textdatum_t::bottom_left);
 
-  lcd.setClipRect(0, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT - lcd.fontHeight(), lcd.width() / 2, lcd.fontHeight());
-  lcd.fillRect(0, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT - lcd.fontHeight(), lcd.width() / 2, lcd.fontHeight(), TFT_BLACK);
+  lcd.setClipRect(0, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT - lcd.fontHeight(),
+                  lcd.width() / 2, lcd.fontHeight());
+  lcd.fillRect(0, TOP_BAR_HEIGHT + MIDDLE_BAR_HEIGHT - lcd.fontHeight(),
+               lcd.width() / 2, lcd.fontHeight(), TFT_BLACK);
   String description = epochTime & 1 ? "clear sky" : "scattered clouds";
   int descriptionWidth = lcd.textWidth(description);
   int descriptionX =
